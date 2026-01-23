@@ -154,7 +154,6 @@ function CircuitComposerPage() {
   const [submitTarget, setSubmitTarget] = useState<SubmitTarget>('qiskit_aer')
   const [selectedHardware, setSelectedHardware] = useState(ibmHardwareOptions[0])
   const [showTargetMenu, setShowTargetMenu] = useState(false)
-  const [hardwareJobId, setHardwareJobId] = useState<string | null>(null)
   const [hardwareStatus, setHardwareStatus] = useState<string | null>(null)
 
   // Handle gate drag start
@@ -402,23 +401,25 @@ function CircuitComposerPage() {
       // Submit to quantum hardware
       try {
         const code = compileToQiskit(circuit)
-        const response = await hardwareApi.submitJob({
-          code,
+        const response = await hardwareApi.run(code, {
           backend: selectedHardware.id,
           shots: 1024
         })
-        setHardwareJobId(response.job_id)
         setHardwareStatus('queued')
         // Poll for job status
         const pollStatus = async () => {
           if (!response.job_id) return
-          const status = await hardwareApi.getJobStatus(response.job_id)
-          setHardwareStatus(status.status)
-          if (status.status === 'completed' && status.result) {
+          const status = await hardwareApi.getStatus(response.job_id)
+          setHardwareStatus(status.status || 'pending')
+          if (status.status === 'completed' && status.measurements) {
             setSimulationResult({
-              counts: status.result.counts || {},
-              shots: status.result.shots || 1024,
-              executionTime: status.result.execution_time || 0,
+              measurements: status.measurements || {},
+              probabilities: status.probabilities || {},
+              numQubits: circuit.numQubits,
+              gateCount: circuit.gates.length,
+              circuitDepth: circuit.gates.length,
+              shots: status.shots || 1024,
+              executionTime: status.executionTime || 0,
               success: true
             })
             setShowSimulationResults(true)
