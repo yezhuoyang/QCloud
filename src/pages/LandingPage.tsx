@@ -221,7 +221,7 @@ function LandingPage() {
         </div>
 
         {/* Challenge Categories */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {COMPETITION_CATEGORIES.map(category => (
             <Link
               key={category.id}
@@ -237,22 +237,22 @@ function LandingPage() {
           ))}
         </div>
 
-        {/* Featured Problems */}
+        {/* Featured Problems - CS 238B */}
         <div className="bg-white rounded-xl border border-qcloud-border p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-qcloud-text flex items-center gap-2">
-              <span className="text-xl">🏆</span>
-              Featured Challenges
+              <span className="text-xl">🎓</span>
+              CS 238B Quantum Algorithms - Featured
             </h3>
             <Link
-              to="/competition"
+              to="/competition?category=cs238b"
               className="text-sm text-qcloud-primary hover:text-qcloud-secondary transition-colors"
             >
-              View All →
+              View All CS 238B →
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {COMPETITION_PROBLEMS.slice(0, 3).map(problem => (
+            {COMPETITION_PROBLEMS.filter(p => p.category === 'cs238b').slice(0, 3).map(problem => (
               <Link
                 key={problem.id}
                 to={`/competition/problem/${problem.id}`}
