@@ -9,6 +9,14 @@ import {
 // Competition categories
 export const COMPETITION_CATEGORIES: CompetitionCategory[] = [
   {
+    id: 'cs238b',
+    name: 'CS 238B Quantum Algorithms',
+    description: 'UCLA CS 238B course homework by Prof. Jens Palsberg - Advanced quantum algorithm implementations',
+    icon: '🎓',
+    problemCount: 10,
+    color: 'teal'
+  },
+  {
     id: 'grover',
     name: "Grover's Search",
     description: 'Implement quantum search algorithms to find marked states',
@@ -803,6 +811,988 @@ def qpe_circuit(n_ancilla=3):
     attemptCount: 98,
     maxScore: 100,
     timeBonus: true
+  },
+
+  // ============ CS 238B Quantum Algorithms Course ============
+  {
+    id: 'cs238b-gottesman-knill',
+    title: 'Prove Gottesman-Knill Theorem',
+    description: `## Problem
+
+Give a clear, complete, and detailed proof of the Gottesman-Knill theorem.
+
+## Background
+
+The Gottesman-Knill theorem states that a quantum circuit using only the following operations can be efficiently simulated on a classical computer:
+- Preparation of qubits in computational basis states
+- Clifford gates (Hadamard, Phase, CNOT)
+- Measurements in the computational basis
+
+This is a fundamental result in quantum computing that delineates the boundary between classically simulable and potentially quantum-advantaged computations.
+
+## Requirements
+
+1. State the theorem precisely
+2. Define the stabilizer formalism
+3. Show how each allowed operation transforms stabilizer states
+4. Prove that the state can be tracked efficiently classically
+5. Discuss the implications for quantum advantage
+
+## Submission
+
+Submit your proof as a PDF file, preferably written in LaTeX.`,
+    category: 'cs238b',
+    difficulty: 'Hard',
+    constraints: {
+      maxQubits: 0,
+      maxGateCount: 0,
+      maxCircuitDepth: 0
+    },
+    fidelityRequirement: {
+      minFidelity: 0.0,
+      targetFidelity: 1.0,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-proof',
+        name: 'Proof Completeness',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 100
+      }
+    ],
+    hints: [
+      'Start by defining the Pauli group and stabilizer states',
+      'Show that Clifford gates map Pauli operators to Pauli operators',
+      'The key insight is that n-qubit stabilizer states can be described by n generators',
+      'Each generator requires O(n) bits to store'
+    ],
+    starterCode: \`% LaTeX Template for Gottesman-Knill Proof
+\\\\documentclass{article}
+\\\\usepackage{amsmath, amssymb, amsthm}
+
+\\\\newtheorem{theorem}{Theorem}
+\\\\newtheorem{lemma}{Lemma}
+\\\\newtheorem{definition}{Definition}
+
+\\\\title{Proof of the Gottesman-Knill Theorem}
+\\\\author{Your Name}
+
+\\\\begin{document}
+\\\\maketitle
+
+\\\\begin{theorem}[Gottesman-Knill]
+% State the theorem here
+\\\\end{theorem}
+
+\\\\section{Preliminaries}
+% Define stabilizer formalism
+
+\\\\section{Proof}
+% Your proof here
+
+\\\\end{document}\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'stabilizer', 'clifford', 'theory', 'proof'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-surface-code',
+    title: 'Validation of Surface Code',
+    description: \`## Problem
+
+Use both Stim and ScaLERQEC to determine the logical error rate of a surface code with distance 7.
+
+## Background
+
+Surface codes are a leading candidate for fault-tolerant quantum computing. The logical error rate depends on:
+- Physical error rate
+- Code distance
+- Decoder performance
+
+## Tasks
+
+1. Load the distance-7 surface code from the provided Stim-format file
+2. Use both Stim and ScaLERQEC with the PyMatching decoder
+3. Use the standard depolarizing noise model
+4. Run experiments with physical error rates: 10⁻³ and 5×10⁻⁴
+5. Compare outputs and running times from both tools
+6. Calculate confidence intervals for each logical error rate estimate
+
+## Submission
+
+Submit a report describing your experiments, comparing outputs and running times.\`,
+    category: 'cs238b',
+    difficulty: 'Hard',
+    constraints: {
+      maxQubits: 0,
+      maxGateCount: 0,
+      maxCircuitDepth: 0
+    },
+    fidelityRequirement: {
+      minFidelity: 0.0,
+      targetFidelity: 1.0,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-stim',
+        name: 'Stim Implementation',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 40
+      },
+      {
+        id: 'tc-scalerqec',
+        name: 'ScaLERQEC Implementation',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 40
+      },
+      {
+        id: 'tc-analysis',
+        name: 'Statistical Analysis',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      }
+    ],
+    hints: [
+      'Install Stim with: pip install stim',
+      'PyMatching is the default decoder in both tools',
+      'Use enough samples to get tight confidence intervals',
+      'The logical error rate should decrease with lower physical error rate'
+    ],
+    starterCode: \`# Surface Code Validation
+import stim
+import numpy as np
+
+def estimate_logical_error_rate(circuit, num_shots=10000):
+    """
+    Estimate the logical error rate of a surface code.
+    """
+    # TODO: Implement using Stim's sampler
+    # TODO: Use PyMatching decoder
+    pass
+
+# Physical error rates to test
+error_rates = [1e-3, 5e-4]
+
+for p in error_rates:
+    # TODO: Modify circuit with depolarizing noise
+    # TODO: Run experiments
+    pass\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'surface-code', 'error-correction', 'stim'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-eigensolver',
+    title: 'Build an Eigensolver',
+    description: \`## Problem
+
+Implement the quantum eigensolver from the lecture notes and demonstrate that it works correctly for matrices up to size 16×16.
+
+## Background
+
+Quantum eigensolvers find eigenvalues and eigenvectors of matrices, which is fundamental to many quantum algorithms.
+
+## Requirements
+
+1. Implement the eigensolver algorithm from lecture notes
+2. Test on matrices of sizes 2×2, 4×4, 8×8, and 16×16
+3. Verify results against classical eigensolvers
+4. Document precision and convergence behavior
+
+## Submission
+
+Submit your program together with a report detailing your implementation, experiments, and results.\`,
+    category: 'cs238b',
+    difficulty: 'Medium',
+    constraints: {
+      maxQubits: 8,
+      maxGateCount: 200,
+      maxCircuitDepth: 100
+    },
+    fidelityRequirement: {
+      minFidelity: 0.8,
+      targetFidelity: 0.95,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-2x2',
+        name: '2×2 Matrix',
+        input: { size: 2 },
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      },
+      {
+        id: 'tc-4x4',
+        name: '4×4 Matrix',
+        input: { size: 4 },
+        expectedOutput: {},
+        isHidden: false,
+        weight: 25
+      },
+      {
+        id: 'tc-8x8',
+        name: '8×8 Matrix',
+        input: { size: 8 },
+        expectedOutput: {},
+        isHidden: true,
+        weight: 25
+      },
+      {
+        id: 'tc-16x16',
+        name: '16×16 Matrix',
+        input: { size: 16 },
+        expectedOutput: {},
+        isHidden: true,
+        weight: 30
+      }
+    ],
+    hints: [
+      'Start with Quantum Phase Estimation as the core',
+      'For n×n matrices, you need log₂(n) qubits to encode the eigenvector',
+      'Use additional ancilla qubits for precision',
+      'Verify eigenvalues: Av = λv'
+    ],
+    starterCode: \`# Quantum Eigensolver
+from qiskit import QuantumCircuit
+import numpy as np
+
+def quantum_eigensolver(matrix, n_precision_qubits=3):
+    """
+    Find eigenvalues of a unitary matrix using QPE.
+    """
+    n = int(np.log2(matrix.shape[0]))
+    total_qubits = n_precision_qubits + n
+
+    qc = QuantumCircuit(total_qubits, n_precision_qubits)
+
+    # Initialize precision qubits in superposition
+    for i in range(n_precision_qubits):
+        qc.h(i)
+
+    # TODO: Implement controlled unitary powers
+    # TODO: Implement inverse QFT
+
+    qc.measure(range(n_precision_qubits), range(n_precision_qubits))
+    return qc\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'eigensolver', 'qpe', 'phase-estimation'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-amplitude-amplification',
+    title: 'Demonstrate Amplitude Amplification',
+    description: \`## Problem
+
+Demonstrate an impressive use of amplitude amplification by designing and implementing a custom quantum search problem.
+
+## Background
+
+The baseline example uses a function f : {0,1}² → {0,1} where f(11) = 1 and f(x) = 0 otherwise. Amplitude amplification can boost the probability from 62.5% to 97.7%.
+
+## Your Tasks
+
+1. **Pick n**: Choose n ≥ 3 qubits
+2. **Define g**: Create a function g : {0,1}ⁿ → {0,1} where g(x) = 1 for exactly one bitstring
+3. **Define V**: Create a unitary V such that measuring gives g(x)=1 with probability 20-30%
+4. **Amplify**: Show amplitude amplification boosts the success probability to >70%
+
+## Requirements
+
+- Demonstrate with quantum circuit simulation
+- Show probability improvements clearly
+- Explain your design choices\`,
+    category: 'cs238b',
+    difficulty: 'Medium',
+    constraints: {
+      maxQubits: 8,
+      maxGateCount: 100,
+      maxCircuitDepth: 50
+    },
+    fidelityRequirement: {
+      minFidelity: 0.7,
+      targetFidelity: 0.9,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-initial',
+        name: 'Initial Probability 20-30%',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 30
+      },
+      {
+        id: 'tc-amplified',
+        name: 'Amplified Probability >70%',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 50
+      },
+      {
+        id: 'tc-complexity',
+        name: 'Design Complexity',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      }
+    ],
+    hints: [
+      'For initial amplitude a, sin²(θ) = a gives the rotation angle',
+      'Number of iterations: approximately π/(4θ) - 1/2',
+      'The Grover diffusion operator: 2|ψ⟩⟨ψ| - I',
+      'Design V carefully to achieve 20-30% initial probability'
+    ],
+    starterCode: \`# Amplitude Amplification Demonstration
+from qiskit import QuantumCircuit
+import numpy as np
+
+def create_initial_state(n_qubits, target_state):
+    """Create a unitary V with 20-30% probability on target."""
+    qc = QuantumCircuit(n_qubits)
+    # TODO: Design V to achieve 20-30% probability
+    return qc
+
+def oracle(qc, n_qubits, target_state):
+    """Apply oracle that marks the target state."""
+    # TODO: Implement oracle
+    pass
+
+def diffusion(qc, n_qubits):
+    """Apply the Grover diffusion operator."""
+    # TODO: Implement diffusion
+    pass\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'amplitude-amplification', 'grover', 'search'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-block-encoding',
+    title: 'Implement Block Encoding',
+    description: \`## Problem
+
+Implement block encoding of banded circulant matrices as described in Camps et al.
+
+## Background
+
+A banded circulant matrix BCMₙ(α, β, γ) of size 2ⁿ × 2ⁿ is a structured sparse matrix.
+
+## Parameters
+
+Use: α = 0.2, β = 0.3, γ = 0.4
+
+## Tasks
+
+1. Implement block encoding of BCM₃(α, β, γ) (8×8 matrix)
+2. Implement block encoding of BCM₄(α, β, γ) (16×16 matrix)
+3. Verify implementations with simulation experiments
+
+## Reference
+
+Daan Camps et al., "Explicit Quantum Circuits for Block Encodings of Certain Sparse Matrices", 2022\`,
+    category: 'cs238b',
+    difficulty: 'Hard',
+    constraints: {
+      maxQubits: 10,
+      maxGateCount: 150,
+      maxCircuitDepth: 80
+    },
+    fidelityRequirement: {
+      minFidelity: 0.9,
+      targetFidelity: 0.99,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-bcm3',
+        name: 'BCM₃ Encoding',
+        input: { n: 3 },
+        expectedOutput: {},
+        isHidden: false,
+        weight: 50
+      },
+      {
+        id: 'tc-bcm4',
+        name: 'BCM₄ Encoding',
+        input: { n: 4 },
+        expectedOutput: {},
+        isHidden: false,
+        weight: 50
+      }
+    ],
+    hints: [
+      'Block encoding uses ancilla qubits to embed the matrix',
+      'The matrix A appears in the upper-left block of a larger unitary',
+      'Use the explicit circuit construction from Section 4.2',
+      'Verify by extracting the matrix elements'
+    ],
+    starterCode: \`# Block Encoding of Banded Circulant Matrices
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Operator
+import numpy as np
+
+def banded_circulant_matrix(n, alpha, beta, gamma):
+    """Construct BCM_n(α, β, γ)."""
+    size = 2**n
+    matrix = np.zeros((size, size))
+    for i in range(size):
+        matrix[i, i] = alpha
+        matrix[i, (i + 1) % size] = gamma
+        matrix[i, (i - 1) % size] = beta
+    return matrix
+
+def block_encoding_circuit(n, alpha, beta, gamma):
+    """Create block encoding circuit."""
+    # TODO: Implement block encoding
+    pass
+
+# Parameters
+alpha, beta, gamma = 0.2, 0.3, 0.4\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'block-encoding', 'sparse-matrix', 'qsvt'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-trotter',
+    title: 'Hamiltonian Simulation by Trotterization',
+    description: \`## Problem
+
+Implement Hamiltonian simulation using the Trotter-Suzuki decomposition.
+
+## Background
+
+Given a Hamiltonian H = Σᵢ Hᵢ, time evolution e^(-iHt) can be approximated by:
+
+**First-order Trotter:** e^(-iHt) ≈ (∏ᵢ e^(-iHᵢt/n))ⁿ
+
+**Second-order Trotter:** Uses symmetric decomposition with error O(t³/n²)
+
+## Requirements
+
+1. Implement first and second order Trotterization
+2. Test on a physically meaningful Hamiltonian (e.g., Heisenberg model)
+3. Show convergence as number of Trotter steps increases
+4. Compare with exact time evolution\`,
+    category: 'cs238b',
+    difficulty: 'Medium',
+    constraints: {
+      maxQubits: 6,
+      maxGateCount: 200,
+      maxCircuitDepth: 100
+    },
+    fidelityRequirement: {
+      minFidelity: 0.9,
+      targetFidelity: 0.99,
+      metric: 'state_fidelity'
+    },
+    testCases: [
+      {
+        id: 'tc-first-order',
+        name: 'First-Order Trotter',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 30
+      },
+      {
+        id: 'tc-second-order',
+        name: 'Second-Order Trotter',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 30
+      },
+      {
+        id: 'tc-convergence',
+        name: 'Convergence Analysis',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 40
+      }
+    ],
+    hints: [
+      'For Pauli terms, e^(-iθP) can be implemented with basis change + RZ',
+      'ZZ interaction: CNOT - RZ - CNOT',
+      'XX interaction: H⊗H - ZZ - H⊗H',
+      'Track fidelity with exact evolution computed classically'
+    ],
+    starterCode: \`# Hamiltonian Simulation by Trotterization
+from qiskit import QuantumCircuit
+import numpy as np
+from scipy.linalg import expm
+
+def trotter_step_first_order(qc, terms, dt):
+    """Apply one first-order Trotter step."""
+    for coeff, pauli in terms:
+        # TODO: Implement e^(-i * coeff * pauli * dt)
+        pass
+
+def trotter_simulation(n_qubits, hamiltonian_terms, t, n_steps, order=1):
+    """Full Trotter simulation circuit."""
+    qc = QuantumCircuit(n_qubits)
+    dt = t / n_steps
+
+    for _ in range(n_steps):
+        trotter_step_first_order(qc, hamiltonian_terms, dt)
+
+    return qc
+
+# Example: 2-qubit Heisenberg model
+heisenberg_terms = [
+    (1.0, 'XX'),
+    (1.0, 'YY'),
+    (1.0, 'ZZ'),
+]\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'hamiltonian', 'trotter', 'simulation'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-lcu',
+    title: 'Hamiltonian Simulation by LCU',
+    description: \`## Problem
+
+Implement Hamiltonian simulation using the Linear Combination of Unitaries (LCU) method.
+
+## Background
+
+The LCU method expresses a non-unitary operator as: A = Σᵢ αᵢ Uᵢ
+
+The LCU circuit uses:
+1. **PREPARE**: Prepares state encoding coefficients
+2. **SELECT**: Applies Uᵢ controlled on register state
+3. **PREPARE†**: Uncomputes the preparation
+
+## Requirements
+
+1. Implement the LCU framework
+2. Apply to Hamiltonian simulation
+3. Demonstrate correctness via simulation\`,
+    category: 'cs238b',
+    difficulty: 'Hard',
+    constraints: {
+      maxQubits: 8,
+      maxGateCount: 250,
+      maxCircuitDepth: 120
+    },
+    fidelityRequirement: {
+      minFidelity: 0.85,
+      targetFidelity: 0.95,
+      metric: 'state_fidelity'
+    },
+    testCases: [
+      {
+        id: 'tc-lcu-basic',
+        name: 'Basic LCU Implementation',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 40
+      },
+      {
+        id: 'tc-hamiltonian',
+        name: 'Hamiltonian Simulation',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 40
+      },
+      {
+        id: 'tc-accuracy',
+        name: 'Accuracy Analysis',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      }
+    ],
+    hints: [
+      'PREPARE circuit can use amplitude encoding techniques',
+      'SELECT is a multi-controlled operation',
+      'Post-selection on ancilla being |0⟩ gives the result'
+    ],
+    starterCode: \`# Hamiltonian Simulation by LCU
+from qiskit import QuantumCircuit
+import numpy as np
+
+def prepare_circuit(coefficients):
+    """Create PREPARE circuit."""
+    n_terms = len(coefficients)
+    n_ancilla = int(np.ceil(np.log2(n_terms)))
+    qc = QuantumCircuit(n_ancilla)
+    # TODO: Implement amplitude encoding
+    return qc
+
+def select_circuit(unitaries, n_system):
+    """Create SELECT circuit."""
+    # TODO: Implement controlled unitary selection
+    pass
+
+def lcu_circuit(coefficients, unitaries, n_system):
+    """Complete LCU circuit: PREPARE - SELECT - PREPARE†."""
+    # TODO: Compose the full circuit
+    pass\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'lcu', 'hamiltonian', 'simulation'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-hhl',
+    title: 'Solving Linear Equations with HHL',
+    description: \`## Problem
+
+Work through a small example of solving linear equations Ax = b using the HHL algorithm.
+
+## Background
+
+The HHL algorithm solves linear systems exponentially faster than classical methods. Key steps:
+1. Encode b as quantum state |b⟩
+2. Phase Estimation to find eigenvalues of A
+3. Controlled rotation by 1/λᵢ
+4. Inverse Phase Estimation
+5. Post-select on ancilla = |1⟩
+
+## Requirements
+
+1. Pick a 2×2 or 4×4 system of linear equations
+2. Show how to represent Ax = b for HHL input
+3. Execute the algorithm step by step
+4. Verify the solution
+
+## Note
+
+This should be written by hand, though you may use computers for calculations.\`,
+    category: 'cs238b',
+    difficulty: 'Hard',
+    constraints: {
+      maxQubits: 6,
+      maxGateCount: 150,
+      maxCircuitDepth: 80
+    },
+    fidelityRequirement: {
+      minFidelity: 0.8,
+      targetFidelity: 0.95,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-setup',
+        name: 'Problem Setup',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 25
+      },
+      {
+        id: 'tc-execution',
+        name: 'Algorithm Execution',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 50
+      },
+      {
+        id: 'tc-verification',
+        name: 'Solution Verification',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 25
+      }
+    ],
+    hints: [
+      'Start with a diagonal A for simplicity',
+      'Eigenvalues must be powers of 2 for exact phase estimation',
+      'The solution |x⟩ ∝ A⁻¹|b⟩',
+      'Success probability depends on overlap with eigenvectors'
+    ],
+    starterCode: \`# HHL Algorithm for Solving Linear Equations
+from qiskit import QuantumCircuit
+import numpy as np
+
+# Example: Solve Ax = b
+A = np.array([[1, 0], [0, 2]])
+b = np.array([1, 1]) / np.sqrt(2)
+
+# Classical solution for verification
+x_classical = np.linalg.solve(A, b)
+print(f"Classical solution: {x_classical}")
+
+def hhl_circuit(n_clock_qubits=2):
+    """Implement HHL for the example system."""
+    n_system = 1
+    total_qubits = n_clock_qubits + n_system + 1
+
+    qc = QuantumCircuit(total_qubits, 1)
+
+    # TODO: Prepare |b⟩
+    # TODO: Phase Estimation
+    # TODO: Controlled rotation
+    # TODO: Inverse Phase Estimation
+
+    return qc\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'hhl', 'linear-equations', 'qpe'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-state-distillation',
+    title: 'Experiment with State Distillation',
+    description: \`## Problem
+
+Distill high-fidelity Bell pairs on an IBM quantum computer using entanglement purification protocols.
+
+## Background
+
+Entanglement distillation takes many noisy entangled pairs and produces fewer, higher-quality pairs.
+
+## Algorithms to Implement
+
+1. **Bennett et al., 1996**: BBPSSW protocol
+2. **Deutsch et al., 1996**: DEJMPS protocol
+
+## Tasks
+
+1. Create many noisy Bell pairs on IBM hardware
+2. Implement both distillation protocols
+3. Measure fidelities before and after
+4. Compare the two algorithms
+
+## Key Questions
+
+- Were you successful at distilling higher-fidelity Bell pairs?
+- Is the error rate below the needed threshold?\`,
+    category: 'cs238b',
+    difficulty: 'Expert',
+    constraints: {
+      maxQubits: 8,
+      maxGateCount: 100,
+      maxCircuitDepth: 50
+    },
+    fidelityRequirement: {
+      minFidelity: 0.0,
+      targetFidelity: 1.0,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-bbpssw',
+        name: 'BBPSSW Protocol',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 35
+      },
+      {
+        id: 'tc-dejmps',
+        name: 'DEJMPS Protocol',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 35
+      },
+      {
+        id: 'tc-comparison',
+        name: 'Protocol Comparison',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 30
+      }
+    ],
+    hints: [
+      'Bell fidelity F = ⟨Φ⁺|ρ|Φ⁺⟩',
+      'Threshold for BBPSSW: F > 0.5',
+      'Use quantum state tomography for fidelity estimation',
+      'IBM devices have varying error rates - choose carefully'
+    ],
+    starterCode: \`# State Distillation Experiment
+from qiskit import QuantumCircuit
+
+def create_bell_pair():
+    """Create a Bell pair circuit."""
+    qc = QuantumCircuit(2)
+    qc.h(0)
+    qc.cx(0, 1)
+    return qc
+
+def bbpssw_protocol(pair1, pair2):
+    """Implement BBPSSW entanglement distillation."""
+    qc = QuantumCircuit(4, 2)
+    # Bilateral CNOT
+    qc.cx(0, 2)
+    qc.cx(1, 3)
+    # Measure target pair
+    qc.measure([2, 3], [0, 1])
+    return qc
+
+def dejmps_protocol(pair1, pair2):
+    """Implement DEJMPS entanglement distillation."""
+    # TODO: Implement DEJMPS protocol
+    pass\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'distillation', 'bell-pairs', 'ibm-quantum'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
+  },
+  {
+    id: 'cs238b-approximate-toffoli',
+    title: 'Approximate Toffoli Gate',
+    description: \`## Problem
+
+Design a circuit synthesizer that approximates the Toffoli gate using a restricted gate set and qubit connectivity.
+
+## Constraints
+
+1. **Qubits**: 3 qubits with connectivity A — B — C (A-B connected, B-C connected, A-C NOT connected)
+2. **Gates**: Exactly 7 CNOT gates, any number of 1-qubit gates
+3. **2-qubit operations**: Only between adjacent qubits
+
+## Objective
+
+Minimize the Hilbert-Schmidt distance between your circuit and the true Toffoli:
+
+d_HS(U, V) = √(1 - |Tr(U†V)|²/d²)
+
+## Submission
+
+Submit your synthesizer program and a report with the Hilbert-Schmidt distance achieved.\`,
+    category: 'cs238b',
+    difficulty: 'Expert',
+    constraints: {
+      maxQubits: 3,
+      maxGateCount: 50,
+      maxCircuitDepth: 30
+    },
+    fidelityRequirement: {
+      minFidelity: 0.0,
+      targetFidelity: 1.0,
+      metric: 'probability_overlap'
+    },
+    testCases: [
+      {
+        id: 'tc-connectivity',
+        name: 'Respects Connectivity',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      },
+      {
+        id: 'tc-cnot-count',
+        name: 'Exactly 7 CNOTs',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 20
+      },
+      {
+        id: 'tc-hs-distance',
+        name: 'Hilbert-Schmidt Distance',
+        input: {},
+        expectedOutput: {},
+        isHidden: false,
+        weight: 60
+      }
+    ],
+    hints: [
+      'The exact Toffoli requires more than 7 CNOTs with linear connectivity',
+      'Use numerical optimization for single-qubit rotations',
+      'Parameterize 1-qubit gates as U3(θ, φ, λ)',
+      'Consider alternating CNOT and rotation layers'
+    ],
+    starterCode: \`# Approximate Toffoli Circuit Synthesizer
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Operator
+import numpy as np
+from scipy.optimize import minimize
+
+# True Toffoli gate matrix
+TOFFOLI = np.array([
+    [1,0,0,0,0,0,0,0],
+    [0,1,0,0,0,0,0,0],
+    [0,0,1,0,0,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,0,0,0,1,0,0,0],
+    [0,0,0,0,0,1,0,0],
+    [0,0,0,0,0,0,0,1],
+    [0,0,0,0,0,0,1,0],
+])
+
+def hilbert_schmidt_distance(U, V):
+    """Compute Hilbert-Schmidt distance."""
+    d = U.shape[0]
+    inner = np.abs(np.trace(U.conj().T @ V))**2 / d**2
+    return np.sqrt(max(0, 1 - inner))
+
+def create_approximate_toffoli(params):
+    """Create approximate Toffoli with given parameters."""
+    qc = QuantumCircuit(3)
+    # TODO: Design circuit with 7 CNOTs
+    return qc
+
+def objective(params):
+    """Objective: Hilbert-Schmidt distance to Toffoli."""
+    qc = create_approximate_toffoli(params)
+    U = Operator(qc).data
+    return hilbert_schmidt_distance(U, TOFFOLI)\`,
+    author: 'Prof. Jens Palsberg',
+    createdAt: '2025-12-01',
+    tags: ['cs238b', 'circuit-synthesis', 'toffoli', 'optimization'],
+    solveCount: 0,
+    attemptCount: 0,
+    maxScore: 100,
+    timeBonus: false
   }
 ]
 

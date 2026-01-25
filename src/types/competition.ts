@@ -12,6 +12,7 @@ export type ProblemCategory =
   | 'error'        // Error Correction
   | 'optimization' // QAOA/Optimization
   | 'simulation'   // Hamiltonian Simulation
+  | 'cs238b'       // CS 238B Quantum Algorithms Course
 
 // Oracle specification for search problems
 export interface OracleSpec {
@@ -219,5 +220,6 @@ export const CATEGORY_COLORS: Record<ProblemCategory, string> = {
   qml: 'pink',
   error: 'red',
   optimization: 'amber',
-  simulation: 'emerald'
+  simulation: 'emerald',
+  cs238b: 'teal'
 }
