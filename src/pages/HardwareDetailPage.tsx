@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { hardwareProviders, typeLabels, typeColors, statusColors } from './HardwarePage'
+import { hardwareApi } from '../utils/api'
 
 interface CredentialConfig {
   token: string
@@ -90,18 +91,11 @@ function HardwareDetailPage() {
     try {
       // For IBM, test with user's credentials via backend
       if (hardware.company === 'IBM') {
-        const response = await fetch('http://localhost:8000/api/hardware/test-credentials', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            token: credentials.token,
-            channel: credentials.channel || 'ibm_quantum',
-            instance: credentials.instance || null,
-          }),
-        })
-        const data = await response.json()
+        const data = await hardwareApi.testCredentials(
+          credentials.token,
+          credentials.channel || 'ibm_quantum',
+          credentials.instance || undefined
+        )
 
         if (data.success) {
           setTestStatus('success')
