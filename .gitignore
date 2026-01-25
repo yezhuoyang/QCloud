@@ -8,8 +8,9 @@ dist/
 .env
 .env.local
 
-# API folder (as requested)
+# API folder and file (as requested)
 api/
+api
 
 # IDE and editor
 .vscode/
