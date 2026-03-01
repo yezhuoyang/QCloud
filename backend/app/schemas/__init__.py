@@ -31,6 +31,24 @@ from .hardware_submission import (
     HardwareSubmissionListResponse,
     HardwareJobStatusResponse
 )
+from .homework import (
+    HomeworkTokenVerifyRequest,
+    HomeworkTokenVerifyResponse,
+    HomeworkSubmitRequest,
+    HomeworkSubmissionResponse as HomeworkSubResponse,
+    HomeworkSubmissionListResponse as HomeworkSubListResponse,
+    HomeworkQueueStatusResponse,
+    HomeworkLeaderboardEntry,
+    HomeworkLeaderboardResponse,
+    HomeworkCreateRequest,
+    HomeworkCreateResponse,
+    HomeworkGenerateTokensRequest,
+    HomeworkGenerateTokensResponse,
+    HomeworkTokenAdminResponse,
+    HomeworkBudgetSummaryResponse,
+    HomeworkUpdateRequest,
+    HomeworkTokenUpdateRequest,
+)
 
 __all__ = [
     # User
@@ -71,5 +89,22 @@ __all__ = [
     "HardwareSubmissionCreate",
     "HardwareSubmissionResponse",
     "HardwareSubmissionListResponse",
-    "HardwareJobStatusResponse"
+    "HardwareJobStatusResponse",
+    # Homework
+    "HomeworkTokenVerifyRequest",
+    "HomeworkTokenVerifyResponse",
+    "HomeworkSubmitRequest",
+    "HomeworkSubResponse",
+    "HomeworkSubListResponse",
+    "HomeworkQueueStatusResponse",
+    "HomeworkLeaderboardEntry",
+    "HomeworkLeaderboardResponse",
+    "HomeworkCreateRequest",
+    "HomeworkCreateResponse",
+    "HomeworkGenerateTokensRequest",
+    "HomeworkGenerateTokensResponse",
+    "HomeworkTokenAdminResponse",
+    "HomeworkBudgetSummaryResponse",
+    "HomeworkUpdateRequest",
+    "HomeworkTokenUpdateRequest",
 ]

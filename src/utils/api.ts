@@ -975,3 +975,290 @@ export const hardwareApi = {
     return apiRequest<HardwareLeaderboard>(`/hardware/leaderboard${params}`);
   },
 };
+
+// ============ Homework API ============
+
+export interface HomeworkInfo {
+  valid: boolean;
+  homework_id?: string;
+  homework_title?: string;
+  course?: string;
+  description?: string;
+  budget_total_seconds?: number;
+  budget_used_seconds?: number;
+  budget_remaining_seconds?: number;
+  submission_count?: number;
+  allowed_backends?: string[];
+  deadline?: string;
+  reference_circuit?: string;
+  error?: string;
+}
+
+export interface HomeworkSubmissionResult {
+  id: string;
+  homework_id: string;
+  status: string;
+  queue_position?: number | null;
+  backend_name: string;
+  shots: number;
+  ibmq_job_id_before?: string | null;
+  ibmq_job_id_after?: string | null;
+  fidelity_before?: number | null;
+  fidelity_after?: number | null;
+  fidelity_improvement?: number | null;
+  score?: number | null;
+  measurements_before?: Record<string, number> | null;
+  measurements_after?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_seconds?: number | null;
+  error_message?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface HomeworkSubmissionList {
+  submissions: HomeworkSubmissionResult[];
+  total: number;
+}
+
+export interface HomeworkQueueEntry {
+  id: string;
+  student_label: string;
+  position: number;
+  backend: string;
+  submitted_at: string;
+}
+
+export interface HomeworkRunningEntry {
+  id: string;
+  student_label: string;
+  backend: string;
+  started_at?: string | null;
+}
+
+export interface HomeworkMyQueueEntry {
+  id: string;
+  position?: number | null;
+  status: string;
+}
+
+export interface HomeworkQueueStatus {
+  queue: HomeworkQueueEntry[];
+  running: HomeworkRunningEntry[];
+  my_submissions: HomeworkMyQueueEntry[];
+  total_queued: number;
+  total_running: number;
+  estimated_wait_minutes: number;
+}
+
+export interface HomeworkLeaderboardEntryType {
+  rank: number;
+  student_label: string;
+  fidelity_before: number;
+  fidelity_after: number;
+  fidelity_improvement: number;
+  score: number;
+  submission_count: number;
+  best_submission_at?: string | null;
+}
+
+export interface HomeworkLeaderboard {
+  homework_id: string;
+  homework_title: string;
+  leaderboard: HomeworkLeaderboardEntryType[];
+  total_students: number;
+  updated_at: string;
+}
+
+export interface HomeworkCreateResult {
+  id: string;
+  title: string;
+  per_student_budget_seconds: number;
+  max_concurrent_jobs: number;
+}
+
+export interface HomeworkTokenGenResult {
+  tokens: Array<{ student_uid: string; token: string }>;
+  count: number;
+}
+
+export interface HomeworkTokenAdmin {
+  id: string;
+  student_uid_hash: string;
+  budget_used_seconds: number;
+  budget_limit_seconds: number;
+  is_active: boolean;
+  submission_count: number;
+  last_used_at?: string | null;
+  created_at: string;
+}
+
+export interface HomeworkBudgetSummary {
+  homework_id: string;
+  homework_title: string;
+  total_budget_seconds: number;
+  total_used_seconds: number;
+  total_remaining_seconds: number;
+  num_students: number;
+  num_active_tokens: number;
+  students: HomeworkTokenAdmin[];
+}
+
+export interface HomeworkListItem {
+  id: string;
+  title: string;
+  course: string;
+  is_active: boolean;
+  num_students: number;
+  total_budget_seconds: number;
+  per_student_budget_seconds: number;
+  max_concurrent_jobs: number;
+  deadline?: string | null;
+  created_at?: string | null;
+}
+
+export const homeworkApi = {
+  /**
+   * Verify a student's homework token
+   */
+  verifyToken: (token: string) =>
+    apiRequest<HomeworkInfo>('/homework/verify-token', {
+      method: 'POST',
+      body: { token },
+    }),
+
+  /**
+   * Submit homework code for hardware execution
+   */
+  submit: (data: {
+    token: string;
+    code: string;
+    backend: string;
+    shots?: number;
+  }) =>
+    apiRequest<HomeworkSubmissionResult>('/homework/submit', {
+      method: 'POST',
+      body: data,
+    }),
+
+  /**
+   * Get submission status
+   */
+  getStatus: (submissionId: string, token: string) =>
+    apiRequest<HomeworkSubmissionResult>(
+      `/homework/status/${submissionId}?token=${encodeURIComponent(token)}`
+    ),
+
+  /**
+   * Get student's submission history
+   */
+  getSubmissions: (token: string) =>
+    apiRequest<HomeworkSubmissionList>(
+      `/homework/submissions?token=${encodeURIComponent(token)}`
+    ),
+
+  /**
+   * Get queue status
+   */
+  getQueueStatus: (homeworkId: string, token?: string) => {
+    const params = token ? `?token=${encodeURIComponent(token)}` : '';
+    return apiRequest<HomeworkQueueStatus>(
+      `/homework/queue/${homeworkId}${params}`
+    );
+  },
+
+  /**
+   * Get homework leaderboard
+   */
+  getLeaderboard: (homeworkId: string) =>
+    apiRequest<HomeworkLeaderboard>(`/homework/leaderboard/${homeworkId}`),
+
+  // ---- Admin endpoints ----
+
+  /**
+   * Create a new homework (admin)
+   */
+  create: (data: {
+    title: string;
+    description?: string;
+    course?: string;
+    ibmq_api_key: string;
+    ibmq_channel?: string;
+    ibmq_instance?: string;
+    allowed_backends: string[];
+    total_budget_seconds?: number;
+    num_students?: number;
+    max_concurrent_jobs?: number;
+    problem_id?: string;
+    deadline?: string;
+    reference_circuit?: string;
+    judge_code?: string;
+  }) =>
+    apiRequest<HomeworkCreateResult>('/homework/admin/create', {
+      method: 'POST',
+      body: data,
+      requireAuth: true,
+    }),
+
+  /**
+   * Generate tokens for student UIDs (admin)
+   */
+  generateTokens: (homeworkId: string, studentUids: string[]) =>
+    apiRequest<HomeworkTokenGenResult>(
+      `/homework/admin/${homeworkId}/generate-tokens`,
+      {
+        method: 'POST',
+        body: { student_uids: studentUids },
+        requireAuth: true,
+      }
+    ),
+
+  /**
+   * Get all tokens for a homework (admin)
+   */
+  getTokens: (homeworkId: string) =>
+    apiRequest<HomeworkTokenAdmin[]>(
+      `/homework/admin/${homeworkId}/tokens`,
+      { requireAuth: true }
+    ),
+
+  /**
+   * Get budget summary (admin)
+   */
+  getBudgets: (homeworkId: string) =>
+    apiRequest<HomeworkBudgetSummary>(
+      `/homework/admin/${homeworkId}/budgets`,
+      { requireAuth: true }
+    ),
+
+  /**
+   * List all homeworks (admin)
+   */
+  listHomeworks: () =>
+    apiRequest<HomeworkListItem[]>('/homework/admin/list', {
+      requireAuth: true,
+    }),
+
+  /**
+   * Update homework settings (admin)
+   */
+  updateHomework: (homeworkId: string, data: Record<string, unknown>) =>
+    apiRequest(`/homework/admin/${homeworkId}`, {
+      method: 'PUT',
+      body: data,
+      requireAuth: true,
+    }),
+
+  /**
+   * Update a token (admin)
+   */
+  updateToken: (tokenId: string, data: { is_active?: boolean; budget_limit_seconds?: number }) =>
+    apiRequest(`/homework/admin/tokens/${tokenId}`, {
+      method: 'PUT',
+      body: data,
+      requireAuth: true,
+    }),
+};
