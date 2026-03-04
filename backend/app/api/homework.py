@@ -217,6 +217,7 @@ async def submit_homework(
         shots=request.shots,
         eval_method=eval_method,
         custom_api_key=request.ibmq_api_key,
+        custom_ibmq_instance=request.ibmq_instance,
     )
 
     # Try to process the queue (may start this job immediately if slots available)
@@ -792,6 +793,10 @@ async def admin_update_homework(
         homework.judge_code = request.judge_code
     if request.ibmq_api_key is not None:
         homework.ibmq_api_key_encrypted = encrypt_api_key(request.ibmq_api_key)
+    if request.ibmq_instance is not None:
+        homework.ibmq_instance = request.ibmq_instance
+    if request.ibmq_channel is not None:
+        homework.ibmq_channel = request.ibmq_channel
 
     homework.updated_at = datetime.utcnow()
     db.commit()
@@ -838,6 +843,8 @@ async def admin_list_homeworks(
             "total_budget_seconds": h.total_budget_seconds,
             "per_student_budget_seconds": h.per_student_budget_seconds,
             "max_concurrent_jobs": h.max_concurrent_jobs,
+            "ibmq_instance": h.ibmq_instance,
+            "ibmq_channel": h.ibmq_channel,
             "deadline": h.deadline.isoformat() if h.deadline else None,
             "created_at": h.created_at.isoformat() if h.created_at else None,
         }

@@ -158,6 +158,7 @@ class HomeworkSubmission(Base):
 
     # Optional student-provided IBM API key (encrypted, used only for this job)
     custom_api_key_encrypted = Column(Text, nullable=True)
+    custom_ibmq_instance = Column(String, nullable=True)  # Student's IBM instance name
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

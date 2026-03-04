@@ -65,6 +65,8 @@ def _run_migrations():
         with engine.begin() as conn:
             if "custom_api_key_encrypted" not in existing:
                 conn.execute(text("ALTER TABLE homework_submissions ADD COLUMN custom_api_key_encrypted TEXT"))
+            if "custom_ibmq_instance" not in existing:
+                conn.execute(text("ALTER TABLE homework_submissions ADD COLUMN custom_ibmq_instance VARCHAR"))
 
 
 def _seed_admin_user():

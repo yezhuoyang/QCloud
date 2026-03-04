@@ -43,6 +43,7 @@ class HomeworkQueueManager:
         shots: int = 1024,
         eval_method: str = "inverse_bell",
         custom_api_key: str = None,
+        custom_ibmq_instance: str = None,
     ) -> HomeworkSubmission:
         """
         Add a submission to the queue.
@@ -74,6 +75,7 @@ class HomeworkQueueManager:
             status="queued",
             eval_method=eval_method,
             custom_api_key_encrypted=encrypt_api_key(custom_api_key) if custom_api_key else None,
+            custom_ibmq_instance=custom_ibmq_instance or None,
         )
         db.add(submission)
         db.commit()
@@ -147,16 +149,19 @@ class HomeworkQueueManager:
             # Use student-provided key if available, otherwise homework's default
             if submission.custom_api_key_encrypted:
                 api_key = decrypt_api_key(submission.custom_api_key_encrypted)
+                # Use student's instance if they provided their own key
+                instance = submission.custom_ibmq_instance or homework.ibmq_instance
             else:
                 api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
+                instance = homework.ibmq_instance
 
             # Create a QiskitRuntimeService instance
             service_kwargs = {
                 "channel": homework.ibmq_channel,
                 "token": api_key,
             }
-            if homework.ibmq_instance:
-                service_kwargs["instance"] = homework.ibmq_instance
+            if instance:
+                service_kwargs["instance"] = instance
             ibm_service = QiskitRuntimeService(**service_kwargs)
 
             backend = ibm_service.backend(submission.backend_name)
@@ -282,13 +287,15 @@ class HomeworkQueueManager:
             # Use student-provided key if available, otherwise homework's default
             if submission.custom_api_key_encrypted:
                 api_key = decrypt_api_key(submission.custom_api_key_encrypted)
+                instance = submission.custom_ibmq_instance or homework.ibmq_instance
             else:
                 api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
+                instance = homework.ibmq_instance
             service_kwargs = {
                 "channel": homework.ibmq_channel,
                 "token": api_key,
             }
-            if homework.ibmq_instance:
+            if instance:
                 service_kwargs["instance"] = homework.ibmq_instance
             ibm_service = QiskitRuntimeService(**service_kwargs)
 

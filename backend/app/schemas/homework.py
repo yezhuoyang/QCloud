@@ -57,6 +57,7 @@ class HomeworkSubmitRequest(BaseModel):
     shots: int = Field(default=1024, ge=1, le=8192)
     eval_method: str = Field(default="inverse_bell", description="'inverse_bell' or 'tomography'")
     ibmq_api_key: Optional[str] = Field(None, description="Optional student-provided IBM API key")
+    ibmq_instance: Optional[str] = Field(None, description="Optional student-provided IBM instance name")
 
 
 class HomeworkSubmissionResponse(BaseModel):
@@ -278,6 +279,8 @@ class HomeworkUpdateRequest(BaseModel):
     reference_circuit: Optional[str] = None
     judge_code: Optional[str] = None
     ibmq_api_key: Optional[str] = Field(None, description="New IBM API key (will be re-encrypted)")
+    ibmq_instance: Optional[str] = Field(None, description="IBM instance name")
+    ibmq_channel: Optional[str] = Field(None, description="IBM channel (e.g. ibm_cloud)")
 
 
 class HomeworkTokenUpdateRequest(BaseModel):

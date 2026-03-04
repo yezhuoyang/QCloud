@@ -12,7 +12,7 @@ import {
   type AdminSubmissionList,
 } from '../utils/api'
 
-type AdminTab = 'submissions' | 'students' | 'submit' | 'tokens'
+type AdminTab = 'submissions' | 'students' | 'submit' | 'tokens' | 'settings'
 
 const KNOWN_BACKENDS = [
   { name: 'ibm_torino', qubits: 133 },
@@ -89,6 +89,13 @@ POST_SELECT = {"00"}
   const [isAdminSubmitting, setIsAdminSubmitting] = useState(false)
   const [adminSubmitMsg, setAdminSubmitMsg] = useState<string | null>(null)
 
+  // Settings
+  const [settingsInstance, setSettingsInstance] = useState('')
+  const [settingsChannel, setSettingsChannel] = useState('')
+  const [settingsApiKey, setSettingsApiKey] = useState('')
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null)
+
   // -- Data fetchers --
 
   useEffect(() => { fetchHomeworks() }, [])
@@ -139,7 +146,15 @@ POST_SELECT = {"00"}
     if (!selectedHomework) return
     if (activeTab === 'submissions') fetchSubmissions(selectedHomework, 1, statusFilter || undefined)
     else if (activeTab === 'students') fetchBudgets(selectedHomework)
-  }, [selectedHomework, activeTab, fetchSubmissions, fetchBudgets, statusFilter])
+    else if (activeTab === 'settings') {
+      const hw = homeworks.find(h => h.id === selectedHomework)
+      if (hw) {
+        setSettingsInstance(hw.ibmq_instance || '')
+        setSettingsChannel(hw.ibmq_channel || '')
+        setSettingsMsg(null)
+      }
+    }
+  }, [selectedHomework, activeTab, fetchSubmissions, fetchBudgets, statusFilter, homeworks])
 
   // -- Handlers --
 
@@ -242,6 +257,30 @@ POST_SELECT = {"00"}
       setAdminSubmitMsg(`Error: ${err.detail || err.message || 'Failed to submit'}`)
     } finally {
       setIsAdminSubmitting(false)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    if (!selectedHomework) return
+    setIsSavingSettings(true)
+    setSettingsMsg(null)
+    try {
+      const updates: Record<string, unknown> = {}
+      if (settingsInstance) updates.ibmq_instance = settingsInstance
+      if (settingsChannel) updates.ibmq_channel = settingsChannel
+      if (settingsApiKey.trim()) updates.ibmq_api_key = settingsApiKey.trim()
+      await homeworkApi.updateHomework(selectedHomework, updates)
+      // Update local homework list with new values
+      setHomeworks(prev => prev.map(h => h.id === selectedHomework
+        ? { ...h, ibmq_instance: settingsInstance || h.ibmq_instance, ibmq_channel: settingsChannel || h.ibmq_channel }
+        : h
+      ))
+      setSettingsApiKey('')
+      setSettingsMsg('Settings saved successfully')
+    } catch (err: any) {
+      setSettingsMsg(`Error: ${err.detail || err.message || 'Failed to save settings'}`)
+    } finally {
+      setIsSavingSettings(false)
     }
   }
 
@@ -399,6 +438,7 @@ POST_SELECT = {"00"}
                 ['students', 'Students & Budgets'],
                 ['submit', 'Submit Job'],
                 ['tokens', 'Tokens'],
+                ['settings', 'Settings'],
               ] as [AdminTab, string][]).map(([tab, label]) => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -836,6 +876,69 @@ POST_SELECT = {"00"}
                 <Link to={`/homework/${selectedHomework}/queue`} className="text-sm text-green-600 hover:text-green-700">
                   Queue
                 </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {selectedHomework && activeTab === 'settings' && (
+          <div className="space-y-4">
+            {/* IBMQ Connection */}
+            <div className="bg-white rounded-xl border border-qcloud-border p-5">
+              <h3 className="font-semibold text-qcloud-text mb-1">IBM Quantum Connection</h3>
+              <p className="text-xs text-qcloud-muted mb-4">
+                Configure the IBM Quantum instance and channel used for submitting jobs.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="text-sm text-qcloud-muted block mb-1">Instance Name</label>
+                  <input
+                    type="text"
+                    value={settingsInstance}
+                    onChange={e => setSettingsInstance(e.target.value)}
+                    placeholder="e.g. ibm-q/open/main"
+                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
+                  />
+                  <p className="text-[10px] text-qcloud-muted mt-1">The IBM instance name (hub/group/project format)</p>
+                </div>
+                <div>
+                  <label className="text-sm text-qcloud-muted block mb-1">Channel</label>
+                  <input
+                    type="text"
+                    value={settingsChannel}
+                    onChange={e => setSettingsChannel(e.target.value)}
+                    placeholder="e.g. ibm_cloud or ibm_quantum"
+                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
+                  />
+                  <p className="text-[10px] text-qcloud-muted mt-1">ibm_cloud or ibm_quantum</p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-sm text-qcloud-muted block mb-1">API Key (leave empty to keep current)</label>
+                <input
+                  type="password"
+                  value={settingsApiKey}
+                  onChange={e => setSettingsApiKey(e.target.value)}
+                  placeholder="Paste new IBM API key to replace current one..."
+                  className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={isSavingSettings}
+                  className="px-4 py-2 bg-qcloud-primary text-white rounded-lg text-sm hover:bg-qcloud-secondary transition-colors disabled:opacity-50"
+                >
+                  {isSavingSettings ? 'Saving...' : 'Save Settings'}
+                </button>
+                {settingsMsg && (
+                  <span className={`text-sm ${settingsMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                    {settingsMsg}
+                  </span>
+                )}
               </div>
             </div>
           </div>
