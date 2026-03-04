@@ -142,6 +142,8 @@ function HomeworkPage() {
   const [simulatorResult, setSimulatorResult] = useState<HomeworkSimulateResult | null>(null)
   const [simulateError, setSimulateError] = useState<string | null>(null)
   const [simulateMode, setSimulateMode] = useState<'distillation' | 'bell_pair'>('distillation')
+  const [singleQubitError, setSingleQubitError] = useState(0.01)
+  const [twoQubitError, setTwoQubitError] = useState(0.02)
 
   // Queue & history state
   const [queueStatus, setQueueStatus] = useState<HomeworkQueueStatus | null>(null)
@@ -306,6 +308,8 @@ function HomeworkPage() {
         shots,
         mode,
         eval_method: evalMethod,
+        single_qubit_error: singleQubitError,
+        two_qubit_error: twoQubitError,
       })
       setSimulatorResult(result)
     } catch (err: any) {
@@ -806,6 +810,31 @@ qc.measure_all()
             ?
           </Link>
           <div className="w-px h-4 bg-slate-600" />
+          {/* Noise model error rates */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">1Q err:</span>
+            <input
+              type="number"
+              value={singleQubitError}
+              onChange={e => setSingleQubitError(Math.max(0, Math.min(0.5, parseFloat(e.target.value) || 0)))}
+              step={0.005}
+              min={0}
+              max={0.5}
+              className="w-14 px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-[10px] text-slate-200 text-center"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">2Q err:</span>
+            <input
+              type="number"
+              value={twoQubitError}
+              onChange={e => setTwoQubitError(Math.max(0, Math.min(0.5, parseFloat(e.target.value) || 0)))}
+              step={0.005}
+              min={0}
+              max={0.5}
+              className="w-14 px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-[10px] text-slate-200 text-center"
+            />
+          </div>
           {/* Simulator button - always available */}
           <button
             onClick={() => handleSimulate('distillation')}
@@ -867,31 +896,18 @@ qc.measure_all()
                   </div>
                 </div>
               ) : (
-                /* Distillation mode: full results */
-                <div className={`grid ${simulatorResult.success_probability != null ? 'grid-cols-4' : 'grid-cols-3'} gap-4 text-center`}>
-                  <div>
-                    <div className="text-[10px] text-qcloud-muted">Reference Fidelity</div>
-                    <div className="text-sm font-bold text-gray-500">
-                      {((simulatorResult.fidelity_before || 0) * 100).toFixed(1)}%
-                    </div>
-                  </div>
+                /* Distillation mode: results */
+                <div className={`grid ${simulatorResult.success_probability != null ? 'grid-cols-2' : 'grid-cols-1'} gap-4 text-center`}>
                   <div>
                     <div className="text-[10px] text-qcloud-muted">Your Fidelity</div>
-                    <div className="text-sm font-bold text-qcloud-primary">
+                    <div className="text-lg font-bold text-qcloud-primary">
                       {((simulatorResult.fidelity_after || 0) * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-qcloud-muted">Improvement</div>
-                    <div className={`text-sm font-bold ${(simulatorResult.fidelity_improvement || 0) > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                      {(simulatorResult.fidelity_improvement || 0) > 0 ? '+' : ''}
-                      {((simulatorResult.fidelity_improvement || 0) * 100).toFixed(1)}%
                     </div>
                   </div>
                   {simulatorResult.success_probability != null && (
                     <div>
                       <div className="text-[10px] text-qcloud-muted">Success Prob.</div>
-                      <div className="text-sm font-bold text-purple-600">
+                      <div className="text-lg font-bold text-purple-600">
                         {(simulatorResult.success_probability * 100).toFixed(1)}%
                         {simulatorResult.post_selected_shots != null && (
                           <span className="text-[9px] font-normal text-qcloud-muted ml-1">

@@ -506,6 +506,8 @@ async def simulate_homework(
         judge_code=homework.judge_code if request.mode == "distillation" else None,
         mode=request.mode,
         eval_method=eval_method,
+        single_qubit_error=request.single_qubit_error,
+        two_qubit_error=request.two_qubit_error,
     )
 
     return HomeworkSimulateResponse(**result)

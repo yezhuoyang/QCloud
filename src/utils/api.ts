@@ -1255,7 +1255,7 @@ export const homeworkApi = {
   /**
    * Run on noisy simulator (no auth required)
    */
-  simulate: (data: { homework_id: string; code: string; shots?: number; mode?: string; eval_method?: string }) =>
+  simulate: (data: { homework_id: string; code: string; shots?: number; mode?: string; eval_method?: string; single_qubit_error?: number; two_qubit_error?: number }) =>
     apiRequest<HomeworkSimulateResult>('/homework/simulate', {
       method: 'POST',
       body: data,

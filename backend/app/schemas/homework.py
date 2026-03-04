@@ -366,6 +366,8 @@ class HomeworkSimulateRequest(BaseModel):
     shots: int = Field(default=1024, ge=1, le=8192)
     mode: str = Field(default="distillation", description="'distillation' or 'bell_pair'")
     eval_method: str = Field(default="inverse_bell", description="'inverse_bell' or 'tomography'")
+    single_qubit_error: float = Field(default=0.01, ge=0.0, le=0.5, description="Single-qubit gate error rate")
+    two_qubit_error: float = Field(default=0.02, ge=0.0, le=0.5, description="Two-qubit gate error rate")
 
 
 class HomeworkSimulateResponse(BaseModel):
