@@ -191,13 +191,6 @@ async def submit_homework(
             detail=f"Unknown backend '{request.backend}'. Choose from: {known_backends}",
         )
 
-    # Validate reference circuit exists
-    if not homework.reference_circuit:
-        raise HTTPException(
-            status_code=400,
-            detail="Homework has no reference circuit configured. Contact your TA.",
-        )
-
     # Validate student's circuit
     is_valid, error = validate_code(request.code)
     if not is_valid:
@@ -491,13 +484,6 @@ async def simulate_homework(
 
     if request.mode not in ("distillation", "bell_pair"):
         raise HTTPException(status_code=400, detail="Invalid mode. Use 'distillation' or 'bell_pair'.")
-
-    # In distillation mode, reference circuit is required
-    if request.mode == "distillation" and not homework.reference_circuit:
-        raise HTTPException(
-            status_code=400,
-            detail="Homework has no reference circuit configured.",
-        )
 
     # Validate student code
     is_valid, error = validate_code(request.code)
@@ -992,9 +978,6 @@ async def admin_direct_submit(
             status_code=400,
             detail=f"Unknown backend '{request.backend_name}'",
         )
-
-    if not homework.reference_circuit:
-        raise HTTPException(status_code=400, detail="Homework has no reference circuit configured")
 
     # Validate circuit code
     is_valid, error = validate_code(request.code)

@@ -66,7 +66,7 @@ class HomeworkQueueManager:
         submission = HomeworkSubmission(
             homework_id=homework.id,
             token_id=token_record.id,
-            code_before=homework.reference_circuit,  # Admin's reference circuit
+            code_before=homework.reference_circuit or "",  # Admin's reference circuit (may be empty)
             code_after=code,                          # Student's distillation circuit
             backend_name=backend_name,
             shots=shots,
@@ -161,17 +161,21 @@ class HomeworkQueueManager:
 
             backend = ibm_service.backend(submission.backend_name)
 
-            # Parse the "before" (reference) circuit
-            circuit_before, _, _, err = execute_circuit_code(submission.code_before)
-            if circuit_before is None:
-                submission.status = "failed"
-                submission.error_message = f"Before circuit error: {err}"
-                return False
+            has_reference = bool(submission.code_before and submission.code_before.strip())
 
-            if not any(
-                instr.operation.name == "measure" for instr in circuit_before.data
-            ):
-                circuit_before.measure_all()
+            # Parse the "before" (reference) circuit if it exists
+            circuit_before = None
+            if has_reference:
+                circuit_before, _, _, err = execute_circuit_code(submission.code_before)
+                if circuit_before is None:
+                    submission.status = "failed"
+                    submission.error_message = f"Before circuit error: {err}"
+                    return False
+
+                if not any(
+                    instr.operation.name == "measure" for instr in circuit_before.data
+                ):
+                    circuit_before.measure_all()
 
             # Parse the "after" (student) circuit + extract initial layout
             circuit_after, _, initial_layout, err = execute_circuit_code(submission.code_after)
@@ -190,8 +194,7 @@ class HomeworkQueueManager:
             submission.gate_count = len(circuit_after.data)
             submission.circuit_depth = circuit_after.depth()
 
-            # Create pass managers: reference uses default layout, student may specify initial_layout
-            pm_ref = generate_preset_pass_manager(backend=backend, optimization_level=3)
+            # Create pass managers
             pm_kwargs = {"backend": backend, "optimization_level": 3}
             if initial_layout:
                 pm_kwargs["initial_layout"] = initial_layout
@@ -199,30 +202,45 @@ class HomeworkQueueManager:
 
             eval_method = submission.eval_method or "inverse_bell"
 
-            if eval_method == "tomography":
-                # 6 pubs: ref ZZ/XX/YY + student ZZ/XX/YY
-                ref_tomo = prepare_tomography_circuits(circuit_before)
-                stu_tomo = prepare_tomography_circuits(circuit_after)
+            if has_reference:
+                pm_ref = generate_preset_pass_manager(backend=backend, optimization_level=3)
 
-                pubs_to_run = [
-                    pm_ref.run(ref_tomo["ZZ"]),       # pub 0: ref ZZ
-                    pm_ref.run(ref_tomo["XX"]),       # pub 1: ref XX
-                    pm_ref.run(ref_tomo["YY"]),       # pub 2: ref YY
-                    pm_student.run(stu_tomo["ZZ"]),   # pub 3: student ZZ
-                    pm_student.run(stu_tomo["XX"]),   # pub 4: student XX
-                    pm_student.run(stu_tomo["YY"]),   # pub 5: student YY
-                ]
-                pub_count = 6
+                if eval_method == "tomography":
+                    ref_tomo = prepare_tomography_circuits(circuit_before)
+                    stu_tomo = prepare_tomography_circuits(circuit_after)
+
+                    pubs_to_run = [
+                        pm_ref.run(ref_tomo["ZZ"]),
+                        pm_ref.run(ref_tomo["XX"]),
+                        pm_ref.run(ref_tomo["YY"]),
+                        pm_student.run(stu_tomo["ZZ"]),
+                        pm_student.run(stu_tomo["XX"]),
+                        pm_student.run(stu_tomo["YY"]),
+                    ]
+                    pub_count = 6
+                else:
+                    inv_before = prepare_inverse_bell_circuit(circuit_before)
+                    inv_after = prepare_inverse_bell_circuit(circuit_after)
+
+                    pubs_to_run = [
+                        pm_ref.run(inv_before),
+                        pm_student.run(inv_after),
+                    ]
+                    pub_count = 2
             else:
-                # inverse_bell: 2 pubs (ref + student with inverse Bell verification)
-                inv_before = prepare_inverse_bell_circuit(circuit_before)
-                inv_after = prepare_inverse_bell_circuit(circuit_after)
-
-                pubs_to_run = [
-                    pm_ref.run(inv_before),      # pub 0: ref inverse bell
-                    pm_student.run(inv_after),   # pub 1: student inverse bell
-                ]
-                pub_count = 2
+                # No reference circuit — run only the student's circuit
+                if eval_method == "tomography":
+                    stu_tomo = prepare_tomography_circuits(circuit_after)
+                    pubs_to_run = [
+                        pm_student.run(stu_tomo["ZZ"]),
+                        pm_student.run(stu_tomo["XX"]),
+                        pm_student.run(stu_tomo["YY"]),
+                    ]
+                    pub_count = 3
+                else:
+                    inv_after = prepare_inverse_bell_circuit(circuit_after)
+                    pubs_to_run = [pm_student.run(inv_after)]
+                    pub_count = 1
 
             # Submit as a single batch job using SamplerV2
             sampler = SamplerV2(mode=backend)
@@ -235,7 +253,7 @@ class HomeworkQueueManager:
 
             print(
                 f"[HomeworkQueue] Job submitted: {ibm_job.job_id()} "
-                f"({eval_method}, {pub_count} pubs) "
+                f"({eval_method}, {pub_count} pubs, ref={'yes' if has_reference else 'no'}) "
                 f"for submission {submission.id}"
             )
             return True
@@ -325,6 +343,7 @@ class HomeworkQueueManager:
         try:
             results = ibm_job.result()
             eval_method = submission.eval_method or "inverse_bell"
+            has_reference = bool(submission.code_before and submission.code_before.strip())
 
             # Extract POST_SELECT from student's code for post-selection
             from ..services.code_validator import execute_circuit_code
@@ -333,9 +352,9 @@ class HomeworkQueueManager:
             homework = submission.homework
 
             if eval_method == "tomography":
-                self._process_tomography(submission, results, post_select, homework)
+                self._process_tomography(submission, results, post_select, homework, has_reference)
             else:
-                self._process_inverse_bell(submission, results, post_select, homework)
+                self._process_inverse_bell(submission, results, post_select, homework, has_reference)
 
             submission.status = "completed"
             submission.completed_at = datetime.utcnow()
@@ -363,24 +382,29 @@ class HomeworkQueueManager:
             submission.completed_at = datetime.utcnow()
             submission.error_message = f"Results parsing error: {str(e)}"
 
-    def _process_inverse_bell(self, submission, results, post_select, homework):
-        """Process inverse_bell results: 2 pubs (ref, student)."""
-        # pub 0: reference circuit with inverse Bell
-        pub_before = results[0]
-        counts_before = pub_before.join_data().get_counts()
-        total_before = sum(counts_before.values())
+    def _process_inverse_bell(self, submission, results, post_select, homework, has_reference=True):
+        """Process inverse_bell results."""
+        if has_reference:
+            # 2 pubs: pub 0 = reference, pub 1 = student
+            pub_before = results[0]
+            counts_before = pub_before.join_data().get_counts()
+            total_before = sum(counts_before.values())
+            pub_after = results[1]
+        else:
+            # 1 pub: pub 0 = student only
+            counts_before = {}
+            total_before = 0
+            pub_after = results[0]
 
-        # pub 1: student circuit with inverse Bell
-        pub_after = results[1]
         counts_after = pub_after.join_data().get_counts()
         total_after = sum(counts_after.values())
 
-        # Store ZZ-basis counts for display
-        submission.measurements_before = json.dumps(counts_before)
+        # Store counts for display
+        submission.measurements_before = json.dumps(counts_before) if counts_before else None
         submission.measurements_after = json.dumps(counts_after)
-        probs_before = {k: v / total_before for k, v in counts_before.items()}
-        probs_after = {k: v / total_after for k, v in counts_after.items()}
-        submission.probabilities_before = json.dumps(probs_before)
+        probs_before = {k: v / total_before for k, v in counts_before.items()} if total_before > 0 else {}
+        probs_after = {k: v / total_after for k, v in counts_after.items()} if total_after > 0 else {}
+        submission.probabilities_before = json.dumps(probs_before) if probs_before else None
         submission.probabilities_after = json.dumps(probs_after)
 
         if homework and homework.judge_code:
@@ -416,7 +440,10 @@ class HomeworkQueueManager:
         total_after = sum(counts_after.values())
 
         # Reference: no post-selection (reference circuit has no ancilla)
-        fid_before, _, _ = compute_fidelity_inverse_bell(counts_before, post_select=None)
+        if counts_before:
+            fid_before, _, _ = compute_fidelity_inverse_bell(counts_before, post_select=None)
+        else:
+            fid_before = 0.0
         submission.fidelity_before = fid_before
 
         # Student: with post-selection
@@ -429,32 +456,40 @@ class HomeworkQueueManager:
             post_selected_shots / total_after if total_after > 0 else 0.0
         )
 
-    def _process_tomography(self, submission, results, post_select, homework):
-        """Process tomography results: 6 pubs (ref ZZ/XX/YY, student ZZ/XX/YY)."""
-        # Extract counts from all 6 pubs
-        ref_counts = {}
+    def _process_tomography(self, submission, results, post_select, homework, has_reference=True):
+        """Process tomography results."""
         stu_counts = {}
-        for i, basis in enumerate(["ZZ", "XX", "YY"]):
-            pub_ref = results[i]
-            ref_counts[basis] = pub_ref.join_data().get_counts()
-            pub_stu = results[i + 3]
-            stu_counts[basis] = pub_stu.join_data().get_counts()
 
-        # Store ZZ-basis counts for display (most natural)
-        total_before = sum(ref_counts["ZZ"].values())
-        total_after = sum(stu_counts["ZZ"].values())
-        submission.measurements_before = json.dumps(ref_counts["ZZ"])
-        submission.measurements_after = json.dumps(stu_counts["ZZ"])
-        probs_before = {k: v / total_before for k, v in ref_counts["ZZ"].items()} if total_before > 0 else {}
-        probs_after = {k: v / total_after for k, v in stu_counts["ZZ"].items()} if total_after > 0 else {}
-        submission.probabilities_before = json.dumps(probs_before)
-        submission.probabilities_after = json.dumps(probs_after)
+        if has_reference:
+            # 6 pubs: ref ZZ/XX/YY (0-2), student ZZ/XX/YY (3-5)
+            ref_counts = {}
+            for i, basis in enumerate(["ZZ", "XX", "YY"]):
+                ref_counts[basis] = results[i].join_data().get_counts()
+                stu_counts[basis] = results[i + 3].join_data().get_counts()
 
-        # Reference fidelity: no post-selection
-        fid_before, corr_before, _ = compute_fidelity_tomography(
-            ref_counts["ZZ"], ref_counts["XX"], ref_counts["YY"], post_select=None
-        )
+            total_before = sum(ref_counts["ZZ"].values())
+            submission.measurements_before = json.dumps(ref_counts["ZZ"])
+            probs_before = {k: v / total_before for k, v in ref_counts["ZZ"].items()} if total_before > 0 else {}
+            submission.probabilities_before = json.dumps(probs_before)
+
+            fid_before, _, _ = compute_fidelity_tomography(
+                ref_counts["ZZ"], ref_counts["XX"], ref_counts["YY"], post_select=None
+            )
+        else:
+            # 3 pubs: student ZZ/XX/YY (0-2)
+            for i, basis in enumerate(["ZZ", "XX", "YY"]):
+                stu_counts[basis] = results[i].join_data().get_counts()
+
+            fid_before = 0.0
+            submission.measurements_before = None
+            submission.probabilities_before = None
+
         submission.fidelity_before = fid_before
+
+        total_after = sum(stu_counts["ZZ"].values())
+        submission.measurements_after = json.dumps(stu_counts["ZZ"])
+        probs_after = {k: v / total_after for k, v in stu_counts["ZZ"].items()} if total_after > 0 else {}
+        submission.probabilities_after = json.dumps(probs_after)
 
         # Student fidelity: with post-selection
         fid_after, corr_after, min_ps = compute_fidelity_tomography(
