@@ -24,6 +24,7 @@ from ..services.homework_service import (
     check_budget,
     encrypt_api_key,
     decrypt_api_key,
+    simulate_homework_noisy,
 )
 from ..services.homework_queue import homework_queue
 from ..services.code_validator import validate_code
@@ -39,6 +40,8 @@ from ..schemas.homework import (
     MyQueueEntry,
     HomeworkLeaderboardEntry,
     HomeworkLeaderboardResponse,
+    HardwareRankingEntry,
+    HardwareRankingResponse,
     HomeworkCreateRequest,
     HomeworkCreateResponse,
     HomeworkGenerateTokensRequest,
@@ -48,6 +51,17 @@ from ..schemas.homework import (
     HomeworkBudgetSummaryResponse,
     HomeworkUpdateRequest,
     HomeworkTokenUpdateRequest,
+    HomeworkInfoResponse,
+    HomeworkSimulateRequest,
+    HomeworkSimulateResponse,
+    HomeworkCheckTranspileRequest,
+    HomeworkCheckTranspileResponse,
+    HomeworkUpdateProfileRequest,
+    HomeworkUpdateProfileResponse,
+    AdminSubmissionResponse,
+    AdminSubmissionListResponse,
+    AdminDirectSubmitRequest,
+    StudentEntry,
 )
 
 router = APIRouter(prefix="/homework", tags=["Homework"])
@@ -110,6 +124,34 @@ async def verify_token(
         allowed_backends=allowed_backends,
         deadline=homework.deadline,
         reference_circuit=homework.reference_circuit,
+        display_name=token_record.display_name,
+        method_name=token_record.method_name,
+    )
+
+
+@router.post("/update-profile", response_model=HomeworkUpdateProfileResponse)
+async def update_student_profile(
+    request: HomeworkUpdateProfileRequest,
+    db: Session = Depends(get_db),
+):
+    """Update student's leaderboard display name and method name."""
+    token_record = verify_homework_token(db, request.token)
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if request.display_name is not None:
+        # Sanitize: strip whitespace, limit length
+        name = request.display_name.strip()[:30]
+        token_record.display_name = name if name else None
+    if request.method_name is not None:
+        name = request.method_name.strip()[:50]
+        token_record.method_name = name if name else None
+
+    db.commit()
+
+    return HomeworkUpdateProfileResponse(
+        display_name=token_record.display_name,
+        method_name=token_record.method_name,
     )
 
 
@@ -138,12 +180,15 @@ async def submit_homework(
             detail=f"Insufficient budget. Remaining: {remaining:.0f}s",
         )
 
-    # Validate backend
-    allowed = json.loads(homework.allowed_backends)
-    if request.backend not in allowed:
+    # Validate backend exists in our known backends
+    known_backends = [
+        "ibm_torino", "ibm_fez", "ibm_kingston",
+        "ibm_marrakesh", "ibm_boston", "ibm_pittsburgh", "ibm_miami",
+    ]
+    if request.backend not in known_backends:
         raise HTTPException(
             status_code=400,
-            detail=f"Backend '{request.backend}' not allowed. Choose from: {allowed}",
+            detail=f"Unknown backend '{request.backend}'. Choose from: {known_backends}",
         )
 
     # Validate reference circuit exists
@@ -161,6 +206,14 @@ async def submit_homework(
             detail=f"Circuit validation error: {error}",
         )
 
+    # Validate eval_method
+    eval_method = request.eval_method
+    if eval_method not in ("inverse_bell", "tomography"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid eval_method. Use 'inverse_bell' or 'tomography'.",
+        )
+
     # Enqueue the submission (reference circuit comes from homework config)
     submission = homework_queue.enqueue(
         db=db,
@@ -169,6 +222,8 @@ async def submit_homework(
         code=request.code,
         backend_name=request.backend,
         shots=request.shots,
+        eval_method=eval_method,
+        custom_api_key=request.ibmq_api_key,
     )
 
     # Try to process the queue (may start this job immediately if slots available)
@@ -246,7 +301,7 @@ async def get_queue_status(
     if token:
         token_record = verify_homework_token(db, token)
 
-    queue_data = homework_queue.get_queue_status(db, homework_id, token_record)
+    queue_data = homework_queue.get_queue_status(db, homework.id, token_record)
 
     return HomeworkQueueStatusResponse(
         queue=[QueueEntry(**e) for e in queue_data["queue"]],
@@ -268,82 +323,304 @@ async def get_leaderboard(
     if not homework:
         raise HTTPException(status_code=404, detail="Homework not found")
 
-    # For each token, get their best submission (highest fidelity_after)
-    # Subquery: best fidelity_after per token
-    best_sub = (
-        db.query(
-            HomeworkSubmission.token_id,
-            func.max(HomeworkSubmission.fidelity_after).label("best_fidelity"),
-        )
-        .filter(
-            HomeworkSubmission.homework_id == homework_id,
-            HomeworkSubmission.status == "completed",
-            HomeworkSubmission.fidelity_after.isnot(None),
-        )
-        .group_by(HomeworkSubmission.token_id)
-        .subquery()
-    )
+    # Use the resolved UUID for all DB queries (homework_id param may be a slug)
+    hw_id = homework.id
 
-    # Join to get full submission details for the best one
+    # Get ALL completed submissions, ranked by fidelity
     results = (
         db.query(HomeworkSubmission, HomeworkToken)
         .join(HomeworkToken, HomeworkSubmission.token_id == HomeworkToken.id)
-        .join(
-            best_sub,
-            (HomeworkSubmission.token_id == best_sub.c.token_id)
-            & (HomeworkSubmission.fidelity_after == best_sub.c.best_fidelity),
-        )
         .filter(
-            HomeworkSubmission.homework_id == homework_id,
+            HomeworkSubmission.homework_id == hw_id,
             HomeworkSubmission.status == "completed",
+            HomeworkSubmission.fidelity_after.isnot(None),
         )
         .order_by(desc(HomeworkSubmission.fidelity_after))
         .all()
     )
 
-    # Build leaderboard entries
-    seen_tokens = set()
+    # Build leaderboard entries — each submission is a separate entry
     entries = []
-    rank = 0
-    for sub, token in results:
-        if token.id in seen_tokens:
-            continue
-        seen_tokens.add(token.id)
-        rank += 1
-
-        # Count total submissions for this student
-        sub_count = (
-            db.query(HomeworkSubmission)
-            .filter(HomeworkSubmission.token_id == token.id)
-            .count()
-        )
-
+    for rank, (sub, token) in enumerate(results, start=1):
         entries.append(
             HomeworkLeaderboardEntry(
                 rank=rank,
+                submission_id=sub.id,
                 student_label=get_student_label(token),
+                display_name=token.display_name,
+                method_name=token.method_name,
                 fidelity_before=sub.fidelity_before or 0.0,
                 fidelity_after=sub.fidelity_after or 0.0,
                 fidelity_improvement=sub.fidelity_improvement or 0.0,
                 score=sub.score or 0,
-                submission_count=sub_count,
-                best_submission_at=sub.completed_at,
+                submitted_at=sub.completed_at,
+                backend_name=sub.backend_name,
+                success_probability=sub.success_probability,
+                eval_method=sub.eval_method or "legacy",
             )
         )
 
     total_students = (
         db.query(HomeworkToken)
-        .filter(HomeworkToken.homework_id == homework_id)
+        .filter(HomeworkToken.homework_id == hw_id)
         .count()
     )
 
     return HomeworkLeaderboardResponse(
-        homework_id=homework_id,
+        homework_id=hw_id,
         homework_title=homework.title,
         leaderboard=entries,
         total_students=total_students,
         updated_at=datetime.utcnow(),
     )
+
+
+@router.get("/hardware-ranking/{homework_id}", response_model=HardwareRankingResponse)
+async def get_hardware_ranking(
+    homework_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get hardware ranking by average fidelity across all completed submissions."""
+    homework = get_homework(db, homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    hw_id = homework.id
+
+    # Aggregate per backend
+    backend_stats = (
+        db.query(
+            HomeworkSubmission.backend_name,
+            func.avg(HomeworkSubmission.fidelity_before).label("avg_fidelity_before"),
+            func.avg(HomeworkSubmission.fidelity_after).label("avg_fidelity_after"),
+            func.avg(HomeworkSubmission.fidelity_improvement).label("avg_improvement"),
+            func.max(HomeworkSubmission.fidelity_after).label("best_fidelity"),
+            func.min(HomeworkSubmission.fidelity_after).label("worst_fidelity"),
+            func.count(HomeworkSubmission.id).label("total_jobs"),
+            func.count(func.distinct(HomeworkSubmission.token_id)).label("unique_students"),
+            func.avg(HomeworkSubmission.success_probability).label("avg_success_prob"),
+        )
+        .filter(
+            HomeworkSubmission.homework_id == hw_id,
+            HomeworkSubmission.status == "completed",
+            HomeworkSubmission.fidelity_after.isnot(None),
+            HomeworkSubmission.backend_name.isnot(None),
+        )
+        .group_by(HomeworkSubmission.backend_name)
+        .order_by(desc("avg_fidelity_after"))
+        .all()
+    )
+
+    total_completed = (
+        db.query(HomeworkSubmission)
+        .filter(
+            HomeworkSubmission.homework_id == hw_id,
+            HomeworkSubmission.status == "completed",
+            HomeworkSubmission.fidelity_after.isnot(None),
+        )
+        .count()
+    )
+
+    rankings = []
+    for rank, row in enumerate(backend_stats, 1):
+        rankings.append(
+            HardwareRankingEntry(
+                rank=rank,
+                backend_name=row.backend_name,
+                avg_fidelity_before=round(float(row.avg_fidelity_before or 0), 6),
+                avg_fidelity_after=round(float(row.avg_fidelity_after or 0), 6),
+                avg_fidelity_improvement=round(float(row.avg_improvement or 0), 6),
+                best_fidelity_after=round(float(row.best_fidelity or 0), 6),
+                worst_fidelity_after=round(float(row.worst_fidelity or 0), 6),
+                total_jobs=row.total_jobs,
+                unique_students=row.unique_students,
+                avg_success_probability=round(float(row.avg_success_prob), 6) if row.avg_success_prob else None,
+            )
+        )
+
+    return HardwareRankingResponse(
+        homework_id=hw_id,
+        homework_title=homework.title,
+        rankings=rankings,
+        total_completed_jobs=total_completed,
+        updated_at=datetime.utcnow(),
+    )
+
+
+# ============ Public Info & Simulator ============
+
+@router.get("/info/{homework_id}", response_model=HomeworkInfoResponse)
+async def get_homework_info(
+    homework_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get public homework info. No auth required."""
+    homework = get_homework(db, homework_id)
+    if not homework or not homework.is_active:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    allowed_backends = json.loads(homework.allowed_backends)
+
+    return HomeworkInfoResponse(
+        id=homework.id,
+        title=homework.title,
+        course=homework.course,
+        description=homework.description,
+        deadline=homework.deadline,
+        reference_circuit=homework.reference_circuit,
+        allowed_backends=allowed_backends,
+        default_shots=1024,
+        is_active=homework.is_active,
+    )
+
+
+@router.post("/simulate", response_model=HomeworkSimulateResponse)
+async def simulate_homework(
+    request: HomeworkSimulateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Run student code on noisy simulator. No token required.
+    Modes:
+      - distillation: runs reference + student circuits, uses student POST_SELECT
+      - bell_pair: runs only student circuit, returns fidelity only
+    """
+    homework = get_homework(db, request.homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    if request.mode not in ("distillation", "bell_pair"):
+        raise HTTPException(status_code=400, detail="Invalid mode. Use 'distillation' or 'bell_pair'.")
+
+    # In distillation mode, reference circuit is required
+    if request.mode == "distillation" and not homework.reference_circuit:
+        raise HTTPException(
+            status_code=400,
+            detail="Homework has no reference circuit configured.",
+        )
+
+    # Validate student code
+    is_valid, error = validate_code(request.code)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"Code validation error: {error}")
+
+    # Validate eval_method
+    eval_method = request.eval_method
+    if eval_method not in ("inverse_bell", "tomography"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid eval_method. Use 'inverse_bell' or 'tomography'.",
+        )
+
+    # Run noisy simulation
+    result = simulate_homework_noisy(
+        reference_circuit_code=homework.reference_circuit,
+        student_circuit_code=request.code,
+        shots=request.shots,
+        judge_code=homework.judge_code if request.mode == "distillation" else None,
+        mode=request.mode,
+        eval_method=eval_method,
+    )
+
+    return HomeworkSimulateResponse(**result)
+
+
+@router.post("/check-transpile", response_model=HomeworkCheckTranspileResponse)
+async def check_transpile(
+    request: HomeworkCheckTranspileRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Preview how student code would be transpiled for a specific backend.
+    Shows extracted INITIAL_LAYOUT, circuit stats, and transpiled QASM.
+    No token required — for debugging purposes.
+    """
+    from ..services.code_validator import execute_circuit_code
+
+    homework = get_homework(db, request.homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    # Validate backend exists in our known backends
+    backend_qubit_counts = {
+        "ibm_torino": 133,
+        "ibm_fez": 156, "ibm_kingston": 156,
+        "ibm_marrakesh": 156, "ibm_boston": 156,
+        "ibm_pittsburgh": 156, "ibm_miami": 120,
+    }
+    if request.backend_name not in backend_qubit_counts:
+        raise HTTPException(status_code=400, detail=f"Unknown backend {request.backend_name}")
+
+    # Validate and parse code
+    is_valid, error = validate_code(request.code)
+    if not is_valid:
+        return HomeworkCheckTranspileResponse(success=False, error=f"Code validation error: {error}")
+
+    circuit, post_select, initial_layout, err = execute_circuit_code(request.code)
+    if circuit is None:
+        return HomeworkCheckTranspileResponse(success=False, error=f"Circuit parse error: {err}")
+
+    # Add measurements if not present
+    if not any(instr.operation.name == "measure" for instr in circuit.data):
+        circuit.measure_all()
+
+    try:
+        from qiskit.transpiler import generate_preset_pass_manager
+        from qiskit.providers.fake_provider import GenericBackendV2
+
+        # Use GenericBackendV2 for local transpilation preview
+        num_qubits = backend_qubit_counts.get(request.backend_name, 156)
+        fake_backend = GenericBackendV2(num_qubits=num_qubits)
+
+        pm_kwargs = {"backend": fake_backend, "optimization_level": 3}
+        if initial_layout:
+            pm_kwargs["initial_layout"] = initial_layout
+        pm = generate_preset_pass_manager(**pm_kwargs)
+
+        # Prepare circuit with eval method
+        eval_method = request.eval_method or "inverse_bell"
+        if eval_method == "inverse_bell":
+            from ..services.homework_queue import prepare_inverse_bell_circuit
+            test_circuit = prepare_inverse_bell_circuit(circuit)
+        else:
+            from ..services.homework_queue import prepare_tomography_circuits
+            tomo = prepare_tomography_circuits(circuit)
+            test_circuit = tomo["ZZ"]  # Show ZZ basis as representative
+
+        transpiled = pm.run(test_circuit)
+
+        # Extract physical qubit mapping
+        physical_qubits = None
+        if transpiled.layout and transpiled.layout.initial_layout:
+            layout = transpiled.layout.initial_layout
+            # Get virtual -> physical mapping
+            physical_qubits = [layout[q] for q in test_circuit.qubits]
+
+        transpiled_qasm = transpiled.qasm() if hasattr(transpiled, 'qasm') else str(transpiled.draw(output='text'))
+
+        return HomeworkCheckTranspileResponse(
+            success=True,
+            initial_layout=initial_layout,
+            post_select=list(post_select) if post_select else None,
+            qubit_count=circuit.num_qubits,
+            gate_count=len(circuit.data),
+            circuit_depth=circuit.depth(),
+            transpiled_qasm=transpiled_qasm,
+            transpiled_depth=transpiled.depth(),
+            transpiled_gate_count=len(transpiled.data),
+            transpiled_qubit_count=transpiled.num_qubits,
+            physical_qubits=physical_qubits,
+        )
+    except Exception as e:
+        return HomeworkCheckTranspileResponse(
+            success=True,
+            initial_layout=initial_layout,
+            post_select=list(post_select) if post_select else None,
+            qubit_count=circuit.num_qubits,
+            gate_count=len(circuit.data),
+            circuit_depth=circuit.depth(),
+            error=f"Transpilation preview failed: {str(e)}",
+        )
 
 
 # ============ Admin Endpoints ============
@@ -392,12 +669,20 @@ async def admin_generate_tokens(
     db: Session = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
-    """Generate tokens for a list of student UIDs (admin only). Raw tokens returned once."""
+    """Generate tokens for a list of students (admin only). Raw tokens returned once."""
     homework = get_homework(db, homework_id)
     if not homework:
         raise HTTPException(status_code=404, detail="Homework not found")
 
-    results = generate_tokens_for_homework(db, homework, request.student_uids)
+    # Support both legacy (student_uids) and new (students with names) format
+    if request.students:
+        student_entries = [(s.uid, s.display_name) for s in request.students]
+    elif request.student_uids:
+        student_entries = [(uid, None) for uid in request.student_uids]
+    else:
+        raise HTTPException(status_code=400, detail="Provide 'students' or 'student_uids'")
+
+    results = generate_tokens_for_homework(db, homework, student_entries)
 
     return HomeworkGenerateTokensResponse(
         tokens=[HomeworkTokenEntry(**r) for r in results],
@@ -418,24 +703,41 @@ async def admin_get_tokens(
 
     tokens = (
         db.query(HomeworkToken)
-        .filter(HomeworkToken.homework_id == homework_id)
+        .filter(HomeworkToken.homework_id == homework.id)
         .order_by(HomeworkToken.created_at.asc())
         .all()
     )
 
-    return [
-        HomeworkTokenAdminResponse(
-            id=t.id,
-            student_uid_hash=t.student_uid,
-            budget_used_seconds=t.budget_used_seconds,
-            budget_limit_seconds=t.budget_limit_seconds,
-            is_active=t.is_active,
-            submission_count=t.submission_count,
-            last_used_at=t.last_used_at,
-            created_at=t.created_at,
-        )
-        for t in tokens
-    ]
+    return [_format_token_admin(t) for t in tokens]
+
+
+def _format_token_admin(t: HomeworkToken) -> HomeworkTokenAdminResponse:
+    """Format a token record for admin response, decrypting raw token and UID if available."""
+    raw_token = None
+    raw_uid = None
+    if t.token_encrypted:
+        try:
+            raw_token = decrypt_api_key(t.token_encrypted)
+        except Exception:
+            pass
+    if t.student_uid_encrypted:
+        try:
+            raw_uid = decrypt_api_key(t.student_uid_encrypted)
+        except Exception:
+            pass
+    return HomeworkTokenAdminResponse(
+        id=t.id,
+        student_uid_hash=t.student_uid,
+        student_uid_raw=raw_uid,
+        display_name=t.display_name,
+        token=raw_token,
+        budget_used_seconds=t.budget_used_seconds,
+        budget_limit_seconds=t.budget_limit_seconds,
+        is_active=t.is_active,
+        submission_count=t.submission_count,
+        last_used_at=t.last_used_at,
+        created_at=t.created_at,
+    )
 
 
 @router.get("/admin/{homework_id}/budgets", response_model=HomeworkBudgetSummaryResponse)
@@ -451,26 +753,14 @@ async def admin_get_budgets(
 
     tokens = (
         db.query(HomeworkToken)
-        .filter(HomeworkToken.homework_id == homework_id)
+        .filter(HomeworkToken.homework_id == homework.id)
         .all()
     )
 
     total_used = sum(t.budget_used_seconds for t in tokens)
     active_count = sum(1 for t in tokens if t.is_active)
 
-    students = [
-        HomeworkTokenAdminResponse(
-            id=t.id,
-            student_uid_hash=t.student_uid,
-            budget_used_seconds=t.budget_used_seconds,
-            budget_limit_seconds=t.budget_limit_seconds,
-            is_active=t.is_active,
-            submission_count=t.submission_count,
-            last_used_at=t.last_used_at,
-            created_at=t.created_at,
-        )
-        for t in tokens
-    ]
+    students = [_format_token_admin(t) for t in tokens]
 
     return HomeworkBudgetSummaryResponse(
         homework_id=homework.id,
@@ -512,6 +802,8 @@ async def admin_update_homework(
         homework.reference_circuit = request.reference_circuit
     if request.judge_code is not None:
         homework.judge_code = request.judge_code
+    if request.ibmq_api_key is not None:
+        homework.ibmq_api_key_encrypted = encrypt_api_key(request.ibmq_api_key)
 
     homework.updated_at = datetime.utcnow()
     db.commit()
@@ -565,6 +857,200 @@ async def admin_list_homeworks(
     ]
 
 
+# ============ Admin: Submissions, Delete, Direct Submit ============
+
+
+@router.get("/admin/{homework_id}/submissions", response_model=AdminSubmissionListResponse)
+async def admin_get_submissions(
+    homework_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get all submissions for a homework with full student info (admin only)."""
+    homework = get_homework(db, homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    hw_id = homework.id
+
+    query = (
+        db.query(HomeworkSubmission, HomeworkToken)
+        .join(HomeworkToken, HomeworkSubmission.token_id == HomeworkToken.id)
+        .filter(HomeworkSubmission.homework_id == hw_id)
+    )
+
+    if status_filter:
+        query = query.filter(HomeworkSubmission.status == status_filter)
+
+    total = query.count()
+
+    results = (
+        query
+        .order_by(HomeworkSubmission.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    submissions = []
+    for sub, token in results:
+        submissions.append(
+            AdminSubmissionResponse(
+                id=sub.id,
+                homework_id=sub.homework_id,
+                token_id=sub.token_id,
+                status=sub.status,
+                queue_position=sub.queue_position,
+                backend_name=sub.backend_name,
+                shots=sub.shots,
+                ibmq_job_id_before=sub.ibmq_job_id_before,
+                ibmq_job_id_after=sub.ibmq_job_id_after,
+                fidelity_before=sub.fidelity_before,
+                fidelity_after=sub.fidelity_after,
+                fidelity_improvement=sub.fidelity_improvement,
+                score=sub.score,
+                measurements_before=json.loads(sub.measurements_before) if sub.measurements_before else None,
+                measurements_after=json.loads(sub.measurements_after) if sub.measurements_after else None,
+                qubit_count=sub.qubit_count,
+                gate_count=sub.gate_count,
+                circuit_depth=sub.circuit_depth,
+                execution_time_seconds=sub.execution_time_seconds,
+                success_probability=sub.success_probability,
+                post_selected_shots=sub.post_selected_shots,
+                eval_method=sub.eval_method or "legacy",
+                tomography_correlators=json.loads(sub.tomography_correlators) if sub.tomography_correlators else None,
+                error_message=sub.error_message,
+                code_before=sub.code_before,
+                code_after=sub.code_after,
+                created_at=sub.created_at,
+                started_at=sub.started_at,
+                completed_at=sub.completed_at,
+                student_uid_hash=token.student_uid,
+                display_name=token.display_name,
+                method_name=token.method_name,
+                student_label=get_student_label(token),
+            )
+        )
+
+    return AdminSubmissionListResponse(
+        submissions=submissions,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.delete("/admin/submissions/{submission_id}")
+async def admin_delete_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Delete a submission (admin only). Running IBM jobs are not cancelled."""
+    submission = db.query(HomeworkSubmission).filter(
+        HomeworkSubmission.id == submission_id
+    ).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    homework_id = submission.homework_id
+    was_queued = submission.status == "queued"
+
+    db.delete(submission)
+    db.commit()
+
+    # Recalculate queue positions if a queued job was removed
+    if was_queued:
+        homework_queue._recalculate_positions(db, homework_id)
+
+    return {"message": "Submission deleted", "id": submission_id}
+
+
+@router.post("/admin/{homework_id}/submit", response_model=HomeworkSubmissionResponse)
+async def admin_direct_submit(
+    homework_id: str,
+    request: AdminDirectSubmitRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Admin direct submit: enqueue a job without a student token."""
+    homework = get_homework(db, homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    # Validate backend
+    known_backends = [
+        "ibm_torino", "ibm_fez", "ibm_kingston",
+        "ibm_marrakesh", "ibm_boston", "ibm_pittsburgh", "ibm_miami",
+    ]
+    if request.backend_name not in known_backends:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown backend '{request.backend_name}'",
+        )
+
+    if not homework.reference_circuit:
+        raise HTTPException(status_code=400, detail="Homework has no reference circuit configured")
+
+    # Validate circuit code
+    is_valid, error = validate_code(request.code)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"Circuit validation error: {error}")
+
+    if request.eval_method not in ("inverse_bell", "tomography"):
+        raise HTTPException(status_code=400, detail="eval_method must be 'inverse_bell' or 'tomography'")
+
+    # Get or create special admin token for this homework
+    admin_uid = "__admin__"
+    admin_token = (
+        db.query(HomeworkToken)
+        .filter(
+            HomeworkToken.homework_id == homework.id,
+            HomeworkToken.student_uid == admin_uid,
+        )
+        .first()
+    )
+
+    if not admin_token:
+        admin_token = HomeworkToken(
+            homework_id=homework.id,
+            student_uid=admin_uid,
+            token_hash="__admin_no_token__",
+            budget_limit_seconds=999999,
+            is_active=True,
+            display_name=request.label or "Admin",
+        )
+        db.add(admin_token)
+        db.commit()
+        db.refresh(admin_token)
+
+    if request.label and admin_token.display_name != request.label:
+        admin_token.display_name = request.label
+        db.commit()
+
+    # Enqueue via existing queue system
+    submission = homework_queue.enqueue(
+        db=db,
+        homework=homework,
+        token_record=admin_token,
+        code=request.code,
+        backend_name=request.backend_name,
+        shots=request.shots,
+        eval_method=request.eval_method,
+    )
+
+    started = homework_queue.process_next(db, homework.id)
+    if started:
+        background_tasks.add_task(_poll_submission_status, started.id)
+
+    db.refresh(submission)
+    return _format_submission(submission)
+
+
 # ============ Helpers ============
 
 def _format_submission(sub: HomeworkSubmission) -> HomeworkSubmissionResponse:
@@ -588,6 +1074,10 @@ def _format_submission(sub: HomeworkSubmission) -> HomeworkSubmissionResponse:
         gate_count=sub.gate_count,
         circuit_depth=sub.circuit_depth,
         execution_time_seconds=sub.execution_time_seconds,
+        success_probability=sub.success_probability,
+        post_selected_shots=sub.post_selected_shots,
+        eval_method=sub.eval_method or "legacy",
+        tomography_correlators=json.loads(sub.tomography_correlators) if sub.tomography_correlators else None,
         error_message=sub.error_message,
         created_at=sub.created_at,
         started_at=sub.started_at,

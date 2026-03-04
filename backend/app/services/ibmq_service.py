@@ -124,7 +124,7 @@ class IBMQService:
         """
         from .code_validator import execute_circuit_code
 
-        circuit, error = execute_circuit_code(circuit_code)
+        circuit, _post_select, _layout, error = execute_circuit_code(circuit_code)
         if circuit is None:
             raise ValueError(error or "No QuantumCircuit found. Define 'circuit' or 'qc' variable.")
 

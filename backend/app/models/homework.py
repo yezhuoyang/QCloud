@@ -76,10 +76,16 @@ class HomeworkToken(Base):
     homework_id = Column(String, ForeignKey("homeworks.id", ondelete="CASCADE"), nullable=False, index=True)
     student_uid = Column(String, nullable=False, index=True)  # SHA256-hashed
     token_hash = Column(String, nullable=False, unique=True)  # SHA256 of HMAC token
+    token_encrypted = Column(Text, nullable=True)  # Fernet-encrypted raw token (for admin view)
+    student_uid_encrypted = Column(Text, nullable=True)  # Fernet-encrypted raw UID (for admin view)
 
     # Budget tracking
     budget_used_seconds = Column(Float, default=0.0)
     budget_limit_seconds = Column(Integer, nullable=False)
+
+    # Student profile (editable by student via token)
+    display_name = Column(String, nullable=True)  # Custom name shown on leaderboard
+    method_name = Column(String, nullable=True)    # Custom method/approach name for leaderboard
 
     # Status
     is_active = Column(Boolean, default=True)
@@ -137,6 +143,10 @@ class HomeworkSubmission(Base):
     fidelity_after = Column(Float, nullable=True)
     fidelity_improvement = Column(Float, nullable=True)
     score = Column(Integer, nullable=True)
+    success_probability = Column(Float, nullable=True)
+    post_selected_shots = Column(Integer, nullable=True)
+    eval_method = Column(String, default="inverse_bell", nullable=False)
+    tomography_correlators = Column(Text, nullable=True)  # JSON: {"XX":0.85,"YY":-0.82,"ZZ":0.88}
 
     # Circuit statistics
     qubit_count = Column(Integer, nullable=True)
@@ -145,6 +155,9 @@ class HomeworkSubmission(Base):
 
     # Error tracking
     error_message = Column(Text, nullable=True)
+
+    # Optional student-provided IBM API key (encrypted, used only for this job)
+    custom_api_key_encrypted = Column(Text, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

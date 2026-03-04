@@ -41,12 +41,20 @@ function HomeworkLeaderboardPage() {
             </p>
           </div>
         </div>
-        <Link
-          to={`/homework/${homeworkId}`}
-          className="px-4 py-2 text-sm bg-qcloud-primary/10 text-qcloud-primary rounded-lg hover:bg-qcloud-primary/20 transition-colors"
-        >
-          Back to Homework
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/homework/${homeworkId}/hardware-ranking`}
+            className="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            Hardware Ranking
+          </Link>
+          <Link
+            to={`/homework/${homeworkId}`}
+            className="px-4 py-2 text-sm bg-qcloud-primary/10 text-qcloud-primary rounded-lg hover:bg-qcloud-primary/20 transition-colors"
+          >
+            Back to Homework
+          </Link>
+        </div>
       </header>
 
       <div className="max-w-4xl mx-auto p-6">
@@ -63,7 +71,7 @@ function HomeworkLeaderboardPage() {
               <div className="text-2xl font-bold text-amber-500">
                 {leaderboard.leaderboard.length}
               </div>
-              <div className="text-sm text-qcloud-muted">Submitted</div>
+              <div className="text-sm text-qcloud-muted">Total Submissions</div>
             </div>
           </div>
         )}
@@ -87,17 +95,16 @@ function HomeworkLeaderboardPage() {
                 <tr className="bg-gray-50 border-b border-qcloud-border text-left text-sm text-qcloud-muted">
                   <th className="px-4 py-3 w-16">Rank</th>
                   <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3 text-right">Reference</th>
-                  <th className="px-4 py-3 text-right">Your Circuit</th>
-                  <th className="px-4 py-3 text-right">Improvement</th>
-                  <th className="px-4 py-3 text-right">Score</th>
-                  <th className="px-4 py-3 text-right">Submissions</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Backend</th>
+                  <th className="px-4 py-3 text-right">Fidelity</th>
+                  <th className="px-4 py-3 text-right">Success Prob.</th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard?.leaderboard.map((entry: HomeworkLeaderboardEntryType) => (
                   <tr
-                    key={entry.student_label}
+                    key={entry.submission_id}
                     className="border-b border-qcloud-border hover:bg-qcloud-bg/30 transition-colors"
                   >
                     <td className="px-4 py-3">
@@ -111,30 +118,55 @@ function HomeworkLeaderboardPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                        {entry.student_label}
-                      </span>
+                      {entry.display_name ? (
+                        <div>
+                          <span className="text-sm font-medium text-qcloud-text">{entry.display_name}</span>
+                          <span className="text-[10px] text-qcloud-muted ml-1.5 font-mono">{entry.student_label}</span>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                          {entry.student_label}
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-qcloud-muted">
-                      {(entry.fidelity_before * 100).toFixed(1)}%
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-0.5">
+                        {entry.method_name && (
+                          <span className="text-xs text-qcloud-text font-medium">{entry.method_name}</span>
+                        )}
+                        {entry.eval_method && entry.eval_method !== 'legacy' ? (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium w-fit ${
+                            entry.eval_method === 'inverse_bell' ? 'bg-teal-50 text-teal-700' :
+                            entry.eval_method === 'tomography' ? 'bg-purple-50 text-purple-700' :
+                            'bg-gray-50 text-gray-500'
+                          }`}>
+                            {entry.eval_method === 'inverse_bell' ? 'InvBell' :
+                             entry.eval_method === 'tomography' ? 'Tomo' :
+                             entry.eval_method}
+                          </span>
+                        ) : !entry.method_name ? (
+                          <span className="text-xs text-qcloud-muted">—</span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {entry.backend_name ? (
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">
+                          {entry.backend_name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-qcloud-muted">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="font-semibold text-qcloud-primary">
                         {(entry.fidelity_after * 100).toFixed(1)}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`text-sm font-medium ${
-                        entry.fidelity_improvement > 0 ? 'text-green-600' : 'text-red-500'
-                      }`}>
-                        {entry.fidelity_improvement > 0 ? '+' : ''}{(entry.fidelity_improvement * 100).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-qcloud-text">
-                      {entry.score}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-qcloud-muted">
-                      {entry.submission_count}
+                    <td className="px-4 py-3 text-right text-sm text-amber-600">
+                      {entry.success_probability != null
+                        ? `${(entry.success_probability * 100).toFixed(1)}%`
+                        : '—'}
                     </td>
                   </tr>
                 ))}

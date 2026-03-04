@@ -1,4 +1,4 @@
-import { Circuit, PlacedGate, GateType } from '../types/circuit'
+import { Circuit, PlacedGate, GateType, generateGateId } from '../types/circuit'
 
 // Format a number for Qiskit (handle pi expressions)
 function formatParam(value: number): string {
@@ -149,8 +149,10 @@ function hasDynamicFeatures(gates: PlacedGate[]): boolean {
 }
 
 // Compile a Circuit to Qiskit Python code
-export function compileToQiskit(circuit: Circuit): string {
-  const { numQubits, numClassicalBits, gates } = circuit
+export function compileToQiskit(circuit: Circuit, postSelect?: string, initialLayout?: string): string {
+  const { numQubits, gates } = circuit
+  // Ensure classical bits always match quantum qubits
+  const numClassicalBits = Math.max(circuit.numClassicalBits, numQubits)
 
   // Sort gates by column (time step)
   const sortedGates = [...gates].sort((a, b) => a.column - b.column)
@@ -197,11 +199,285 @@ export function compileToQiskit(circuit: Circuit): string {
     lines.push('')
   }
 
-  // Add comment about visualization
-  lines.push('# Draw the circuit')
-  lines.push('print(qc.draw())')
+  // Add POST_SELECT if provided
+  if (postSelect && postSelect.trim()) {
+    lines.push('# Post-selection condition:')
+    lines.push('# Only shots where ancilla bits match a string in POST_SELECT are kept.')
+    lines.push(`POST_SELECT = ${postSelect}`)
+  }
+
+  // Add INITIAL_LAYOUT if provided
+  if (initialLayout && initialLayout.trim()) {
+    lines.push('')
+    lines.push('# Qubit layout: maps logical qubits to physical qubits on hardware.')
+    lines.push('# If not specified, the transpiler chooses automatically (optimization_level=3).')
+    lines.push(`INITIAL_LAYOUT = ${initialLayout}`)
+  }
 
   return lines.join('\n')
+}
+
+// ============ Decompiler: Qiskit code → Circuit object ============
+
+// Evaluate a parameter expression (pi/2, np.pi, etc.) to a number
+function evaluateParamExpr(expr: string): number {
+  expr = expr.trim()
+  // Replace pi constants
+  expr = expr.replace(/np\.pi|math\.pi/gi, String(Math.PI))
+  expr = expr.replace(/\bpi\b/gi, String(Math.PI))
+  expr = expr.replace(/np\.e|math\.e/gi, String(Math.E))
+  try {
+    if (/^[\d\s.\+\-\*\/\(\)e]+$/i.test(expr)) {
+      const result = new Function(`return ${expr}`)()
+      if (typeof result === 'number' && !isNaN(result)) return result
+    }
+  } catch { /* fall through */ }
+  const num = parseFloat(expr)
+  return isNaN(num) ? 0 : num
+}
+
+// Gate regex patterns for decompilation (method call → GateType + qubit extraction)
+interface GatePattern {
+  regex: RegExp
+  type: GateType
+  extract: (match: RegExpMatchArray) => { qubits: number[]; params?: number[]; classicalBit?: number }
+}
+
+function buildGatePatterns(): GatePattern[] {
+  // Helper to build single-qubit gate pattern
+  const sq = (method: string, type: GateType): GatePattern => ({
+    regex: new RegExp(`\\.${method}\\s*\\(\\s*(\\d+)\\s*\\)`),
+    type,
+    extract: (m) => ({ qubits: [parseInt(m[1])] }),
+  })
+  // Single-qubit with 1 param: .rx(param, qubit)
+  const sq1p = (method: string, type: GateType): GatePattern => ({
+    regex: new RegExp(`\\.${method}\\s*\\(\\s*([^,]+)\\s*,\\s*(\\d+)\\s*\\)`),
+    type,
+    extract: (m) => ({ qubits: [parseInt(m[2])], params: [evaluateParamExpr(m[1])] }),
+  })
+  // Two-qubit gate: .cx(q1, q2)
+  const tq = (method: string, type: GateType): GatePattern => ({
+    regex: new RegExp(`\\.${method}\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)`),
+    type,
+    extract: (m) => ({ qubits: [parseInt(m[1]), parseInt(m[2])] }),
+  })
+  // Two-qubit with 1 param: .crx(param, q1, q2)
+  const tq1p = (method: string, type: GateType): GatePattern => ({
+    regex: new RegExp(`\\.${method}\\s*\\(\\s*([^,]+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)`),
+    type,
+    extract: (m) => ({ qubits: [parseInt(m[2]), parseInt(m[3])], params: [evaluateParamExpr(m[1])] }),
+  })
+  // Three-qubit gate: .ccx(q1, q2, q3)
+  const thq = (method: string, type: GateType): GatePattern => ({
+    regex: new RegExp(`\\.${method}\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)`),
+    type,
+    extract: (m) => ({ qubits: [parseInt(m[1]), parseInt(m[2]), parseInt(m[3])] }),
+  })
+
+  return [
+    // Single-qubit
+    sq('h', 'H'), sq('x', 'X'), sq('y', 'Y'), sq('z', 'Z'),
+    sq('s', 'S'), sq('sdg', 'Sdg'), sq('t', 'T'), sq('tdg', 'Tdg'),
+    sq('sx', 'SX'), sq('sxdg', 'SXdg'),
+    sq('(?:id|i)', 'I'), sq('reset', 'RESET'),
+    // Single-qubit with params
+    sq1p('rx', 'RX'), sq1p('ry', 'RY'), sq1p('rz', 'RZ'), sq1p('p', 'P'),
+    // U gate: .u(theta, phi, lambda, qubit)
+    {
+      regex: /\.u\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*(\d+)\s*\)/,
+      type: 'U' as GateType,
+      extract: (m: RegExpMatchArray) => ({
+        qubits: [parseInt(m[4])],
+        params: [evaluateParamExpr(m[1]), evaluateParamExpr(m[2]), evaluateParamExpr(m[3])],
+      }),
+    },
+    // Two-qubit
+    tq('cx', 'CX'), tq('cnot', 'CX'), tq('cy', 'CY'), tq('cz', 'CZ'), tq('ch', 'CH'),
+    tq('swap', 'SWAP'), tq('iswap', 'iSWAP'),
+    // Two-qubit with params
+    tq1p('crx', 'CRX'), tq1p('cry', 'CRY'), tq1p('crz', 'CRZ'), tq1p('cp', 'CP'),
+    // Three-qubit
+    thq('ccx', 'CCX'), thq('toffoli', 'CCX'),
+    thq('cswap', 'CSWAP'), thq('fredkin', 'CSWAP'),
+    // Measurement: .measure(qubit, cbit)
+    {
+      regex: /\.measure\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/,
+      type: 'MEASURE' as GateType,
+      extract: (m: RegExpMatchArray) => ({
+        qubits: [parseInt(m[1])],
+        classicalBit: parseInt(m[2]),
+      }),
+    },
+    // Measure with list syntax: .measure([0, 1, 2, 3], [0, 1, 2, 3])
+    // Handled separately below
+  ]
+}
+
+const DECOMPILE_PATTERNS = buildGatePatterns()
+
+/**
+ * Decompile Qiskit Python code into a Circuit object for the visual composer.
+ * Returns null if the code can't be meaningfully parsed.
+ */
+export function decompileToCircuit(code: string): { circuit: Circuit; postSelect: string | null; initialLayout: string | null } | null {
+  try {
+    const lines = code.split('\n')
+    let numQubits = 2
+    let numClassicalBits = 2
+    let postSelect: string | null = null
+    let initialLayout: string | null = null
+    const gates: PlacedGate[] = []
+
+    // Track next available column per qubit for scheduling
+    const nextColumn: number[] = []
+
+    const getNextCol = (qubits: number[]): number => {
+      let maxCol = 0
+      for (const q of qubits) {
+        while (nextColumn.length <= q) nextColumn.push(0)
+        maxCol = Math.max(maxCol, nextColumn[q])
+      }
+      return maxCol
+    }
+
+    const advanceCols = (qubits: number[], col: number) => {
+      for (const q of qubits) {
+        while (nextColumn.length <= q) nextColumn.push(0)
+        nextColumn[q] = col + 1
+      }
+    }
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+
+      // Skip comments and empty lines
+      if (trimmed.startsWith('#') || trimmed === '') continue
+
+      // Extract circuit size: QuantumCircuit(N, M) or QuantumCircuit(N)
+      const circuitMatch = trimmed.match(/QuantumCircuit\s*\(\s*(\d+)\s*(?:,\s*(\d+))?\s*\)/)
+      if (circuitMatch) {
+        numQubits = parseInt(circuitMatch[1])
+        numClassicalBits = circuitMatch[2] ? Math.max(parseInt(circuitMatch[2]), numQubits) : numQubits
+        continue
+      }
+
+      // Extract POST_SELECT = {...}
+      const postSelectMatch = trimmed.match(/^POST_SELECT\s*=\s*(\{[^}]*\})/)
+      if (postSelectMatch) {
+        postSelect = postSelectMatch[1]
+        continue
+      }
+
+      // Extract INITIAL_LAYOUT = [...]
+      const layoutMatch = trimmed.match(/^INITIAL_LAYOUT\s*=\s*(\[[^\]]*\])/)
+      if (layoutMatch) {
+        initialLayout = layoutMatch[1]
+        continue
+      }
+
+      // Handle measure_all()
+      if (/\.measure_all\s*\(\s*\)/.test(trimmed)) {
+        for (let q = 0; q < numQubits; q++) {
+          const col = getNextCol([q])
+          gates.push({
+            id: generateGateId(),
+            type: 'MEASURE',
+            qubits: [q],
+            classicalBit: q,
+            column: col,
+          })
+          advanceCols([q], col)
+        }
+        continue
+      }
+
+      // Handle measure with list syntax: .measure([0, 1, 2, 3], [0, 1, 2, 3])
+      const measureListMatch = trimmed.match(/\.measure\s*\(\s*\[([^\]]*)\]\s*,\s*\[([^\]]*)\]\s*\)/)
+      if (measureListMatch) {
+        const qubits = measureListMatch[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+        const cbits = measureListMatch[2].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+        for (let i = 0; i < qubits.length; i++) {
+          const col = getNextCol([qubits[i]])
+          gates.push({
+            id: generateGateId(),
+            type: 'MEASURE',
+            qubits: [qubits[i]],
+            classicalBit: cbits[i] ?? qubits[i],
+            column: col,
+          })
+          advanceCols([qubits[i]], col)
+        }
+        continue
+      }
+
+      // Handle barrier with args: .barrier(0, 1, 2, 3) or .barrier()
+      const barrierMatch = trimmed.match(/\.barrier\s*\(\s*([^)]*)\s*\)/)
+      if (barrierMatch) {
+        let barrierQubits: number[]
+        if (barrierMatch[1].trim() === '') {
+          barrierQubits = Array.from({ length: numQubits }, (_, i) => i)
+        } else {
+          barrierQubits = barrierMatch[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+        }
+        if (barrierQubits.length > 0) {
+          const col = getNextCol(barrierQubits)
+          gates.push({
+            id: generateGateId(),
+            type: 'BARRIER',
+            qubits: barrierQubits,
+            column: col,
+          })
+          advanceCols(barrierQubits, col)
+        }
+        continue
+      }
+
+      // Try each gate pattern
+      let matched = false
+      for (const pattern of DECOMPILE_PATTERNS) {
+        const match = trimmed.match(pattern.regex)
+        if (match) {
+          const { qubits, params, classicalBit } = pattern.extract(match)
+          // Ensure all qubits are in range
+          if (qubits.every(q => q < numQubits)) {
+            const col = getNextCol(qubits)
+            gates.push({
+              id: generateGateId(),
+              type: pattern.type,
+              qubits,
+              params,
+              classicalBit,
+              column: col,
+            })
+            advanceCols(qubits, col)
+          }
+          matched = true
+          break
+        }
+      }
+
+      // Lines we don't understand are simply skipped (imports, print, variable assignments, etc.)
+      if (!matched) continue
+    }
+
+    // If we didn't find any gates, parsing might have failed
+    if (gates.length === 0 && !code.includes('QuantumCircuit')) {
+      return null
+    }
+
+    return {
+      circuit: {
+        numQubits,
+        numClassicalBits,
+        gates,
+      },
+      postSelect,
+      initialLayout,
+    }
+  } catch {
+    return null
+  }
 }
 
 // Parse a parameter string that might contain pi notation

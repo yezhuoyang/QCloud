@@ -108,8 +108,7 @@ class SecureCodeValidator(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_With(self, node: ast.With):
-        """Disallow with statements (could be used for file operations)."""
-        self.errors.append("'with' statements are not allowed.")
+        """Allow with statements for dynamic circuits (qc.if_test, etc.)."""
         self.generic_visit(node)
 
     def visit_Try(self, node: ast.Try):
@@ -213,19 +212,23 @@ def validate_code(code: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-def execute_circuit_code(code: str) -> Tuple[Optional[object], Optional[str]]:
+def execute_circuit_code(code: str) -> Tuple[Optional[object], Optional[set], Optional[list], Optional[str]]:
     """
-    Safely execute Qiskit circuit code and return the circuit.
+    Safely execute Qiskit circuit code and return the circuit + post-selection set + initial layout.
     Users can only define QuantumCircuit, add gates, and measurements.
     All imports and simulation are handled by the backend.
 
+    Students may optionally define:
+    - POST_SELECT as a set of bitstrings (e.g., POST_SELECT = {"00"})
+    - INITIAL_LAYOUT as a list of ints (e.g., INITIAL_LAYOUT = [0, 1, 2, 3])
+
     Returns:
-        Tuple of (circuit, error_message)
+        Tuple of (circuit, post_select_set_or_None, initial_layout_or_None, error_message)
     """
     # First validate the code
     is_valid, error = validate_code(code)
     if not is_valid:
-        return None, error
+        return None, None, None, error
 
     # Create a restricted namespace with only circuit-related items
     import math
@@ -292,7 +295,7 @@ def execute_circuit_code(code: str) -> Tuple[Optional[object], Optional[str]]:
     try:
         exec(code, namespace)
     except Exception as e:
-        return None, f"Error executing code: {type(e).__name__}: {str(e)}"
+        return None, None, None, f"Error executing code: {type(e).__name__}: {str(e)}"
 
     # Find the QuantumCircuit in the namespace
     circuit = None
@@ -310,6 +313,26 @@ def execute_circuit_code(code: str) -> Tuple[Optional[object], Optional[str]]:
             break
 
     if circuit is None:
-        return None, "No QuantumCircuit found. Create a circuit using 'qc = QuantumCircuit(n, n)' or 'circuit = QuantumCircuit(n)'"
+        return None, None, None, "No QuantumCircuit found. Create a circuit using 'qc = QuantumCircuit(n, n)' or 'circuit = QuantumCircuit(n)'"
 
-    return circuit, None
+    # Extract POST_SELECT if defined by the student
+    post_select = None
+    if 'POST_SELECT' in namespace:
+        ps = namespace['POST_SELECT']
+        if isinstance(ps, (set, list, tuple)):
+            post_select = set()
+            for item in ps:
+                s = str(item)
+                if all(c in '01' for c in s):
+                    post_select.add(s)
+            if not post_select:
+                post_select = None
+
+    # Extract INITIAL_LAYOUT if defined by the student
+    initial_layout = None
+    if 'INITIAL_LAYOUT' in namespace:
+        il = namespace['INITIAL_LAYOUT']
+        if isinstance(il, (list, tuple)) and all(isinstance(x, int) for x in il):
+            initial_layout = list(il)
+
+    return circuit, post_select, initial_layout, None

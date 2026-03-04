@@ -18,6 +18,11 @@ from .homework_service import (
     execute_judge_code,
     deduct_budget,
     get_student_label,
+    _apply_post_selection,
+    prepare_inverse_bell_circuit,
+    prepare_tomography_circuits,
+    compute_fidelity_inverse_bell,
+    compute_fidelity_tomography,
 )
 from ..config import settings
 
@@ -36,12 +41,17 @@ class HomeworkQueueManager:
         code: str,
         backend_name: str,
         shots: int = 1024,
+        eval_method: str = "inverse_bell",
+        custom_api_key: str = None,
     ) -> HomeworkSubmission:
         """
         Add a submission to the queue.
         Assigns next queue position and creates the submission record.
         The reference circuit comes from homework config; student provides one circuit.
+        If custom_api_key is provided, it's encrypted and stored on the submission.
         """
+        from .homework_service import encrypt_api_key
+
         # Get next queue position for this homework
         max_pos = (
             db.query(func.max(HomeworkSubmission.queue_position))
@@ -62,6 +72,8 @@ class HomeworkQueueManager:
             shots=shots,
             queue_position=next_pos,
             status="queued",
+            eval_method=eval_method,
+            custom_api_key_encrypted=encrypt_api_key(custom_api_key) if custom_api_key else None,
         )
         db.add(submission)
         db.commit()
@@ -123,14 +135,20 @@ class HomeworkQueueManager:
         """
         Submit the circuit to IBM hardware using the homework's encrypted API key.
         Returns True on success, False on failure.
+
+        For inverse_bell: 2 pubs (ref + student, each with inverse Bell verification)
+        For tomography: 6 pubs (ref ZZ/XX/YY + student ZZ/XX/YY)
         """
         try:
             from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
             from qiskit.transpiler import generate_preset_pass_manager
             from ..services.code_validator import execute_circuit_code
 
-            # Decrypt IBM API key
-            api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
+            # Use student-provided key if available, otherwise homework's default
+            if submission.custom_api_key_encrypted:
+                api_key = decrypt_api_key(submission.custom_api_key_encrypted)
+            else:
+                api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
 
             # Create a QiskitRuntimeService instance
             service_kwargs = {
@@ -142,23 +160,21 @@ class HomeworkQueueManager:
             ibm_service = QiskitRuntimeService(**service_kwargs)
 
             backend = ibm_service.backend(submission.backend_name)
-            pm = generate_preset_pass_manager(backend=backend, optimization_level=3)
 
-            # Parse and submit the "before" circuit
-            circuit_before, err = execute_circuit_code(submission.code_before)
+            # Parse the "before" (reference) circuit
+            circuit_before, _, _, err = execute_circuit_code(submission.code_before)
             if circuit_before is None:
                 submission.status = "failed"
                 submission.error_message = f"Before circuit error: {err}"
                 return False
 
-            # Ensure measurements
             if not any(
                 instr.operation.name == "measure" for instr in circuit_before.data
             ):
                 circuit_before.measure_all()
 
-            # Parse and submit the "after" circuit
-            circuit_after, err = execute_circuit_code(submission.code_after)
+            # Parse the "after" (student) circuit + extract initial layout
+            circuit_after, _, initial_layout, err = execute_circuit_code(submission.code_after)
             if circuit_after is None:
                 submission.status = "failed"
                 submission.error_message = f"After circuit error: {err}"
@@ -169,26 +185,57 @@ class HomeworkQueueManager:
             ):
                 circuit_after.measure_all()
 
-            # Record circuit stats from the "after" circuit
+            # Record circuit stats from the "after" circuit (before eval transforms)
             submission.qubit_count = circuit_after.num_qubits
             submission.gate_count = len(circuit_after.data)
             submission.circuit_depth = circuit_after.depth()
 
-            # Transpile both circuits
-            isa_before = pm.run(circuit_before)
-            isa_after = pm.run(circuit_after)
+            # Create pass managers: reference uses default layout, student may specify initial_layout
+            pm_ref = generate_preset_pass_manager(backend=backend, optimization_level=3)
+            pm_kwargs = {"backend": backend, "optimization_level": 3}
+            if initial_layout:
+                pm_kwargs["initial_layout"] = initial_layout
+            pm_student = generate_preset_pass_manager(**pm_kwargs)
 
-            # Submit both as a single batch job using SamplerV2
+            eval_method = submission.eval_method or "inverse_bell"
+
+            if eval_method == "tomography":
+                # 6 pubs: ref ZZ/XX/YY + student ZZ/XX/YY
+                ref_tomo = prepare_tomography_circuits(circuit_before)
+                stu_tomo = prepare_tomography_circuits(circuit_after)
+
+                pubs_to_run = [
+                    pm_ref.run(ref_tomo["ZZ"]),       # pub 0: ref ZZ
+                    pm_ref.run(ref_tomo["XX"]),       # pub 1: ref XX
+                    pm_ref.run(ref_tomo["YY"]),       # pub 2: ref YY
+                    pm_student.run(stu_tomo["ZZ"]),   # pub 3: student ZZ
+                    pm_student.run(stu_tomo["XX"]),   # pub 4: student XX
+                    pm_student.run(stu_tomo["YY"]),   # pub 5: student YY
+                ]
+                pub_count = 6
+            else:
+                # inverse_bell: 2 pubs (ref + student with inverse Bell verification)
+                inv_before = prepare_inverse_bell_circuit(circuit_before)
+                inv_after = prepare_inverse_bell_circuit(circuit_after)
+
+                pubs_to_run = [
+                    pm_ref.run(inv_before),      # pub 0: ref inverse bell
+                    pm_student.run(inv_after),   # pub 1: student inverse bell
+                ]
+                pub_count = 2
+
+            # Submit as a single batch job using SamplerV2
             sampler = SamplerV2(mode=backend)
             sampler.options.default_shots = submission.shots
 
-            ibm_job = sampler.run([isa_before, isa_after])
+            ibm_job = sampler.run(pubs_to_run)
 
             submission.ibmq_job_id_before = ibm_job.job_id()
-            submission.ibmq_job_id_after = ibm_job.job_id()  # Same job, two pubs
+            submission.ibmq_job_id_after = ibm_job.job_id()  # Same job
 
             print(
                 f"[HomeworkQueue] Job submitted: {ibm_job.job_id()} "
+                f"({eval_method}, {pub_count} pubs) "
                 f"for submission {submission.id}"
             )
             return True
@@ -214,7 +261,11 @@ class HomeworkQueueManager:
         try:
             from qiskit_ibm_runtime import QiskitRuntimeService
 
-            api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
+            # Use student-provided key if available, otherwise homework's default
+            if submission.custom_api_key_encrypted:
+                api_key = decrypt_api_key(submission.custom_api_key_encrypted)
+            else:
+                api_key = decrypt_api_key(homework.ibmq_api_key_encrypted)
             service_kwargs = {
                 "channel": homework.ibmq_channel,
                 "token": api_key,
@@ -273,67 +324,18 @@ class HomeworkQueueManager:
         """Process a completed IBM job: extract results, compute fidelity, deduct budget."""
         try:
             results = ibm_job.result()
+            eval_method = submission.eval_method or "inverse_bell"
 
-            # Extract results for "before" circuit (pub index 0)
-            pub_before = results[0]
-            counts_before = pub_before.join_data().get_counts()
-            total_before = sum(counts_before.values())
-            probs_before = {k: v / total_before for k, v in counts_before.items()}
+            # Extract POST_SELECT from student's code for post-selection
+            from ..services.code_validator import execute_circuit_code
+            _, post_select, _, _ = execute_circuit_code(submission.code_after)
 
-            # Extract results for "after" circuit (pub index 1)
-            pub_after = results[1]
-            counts_after = pub_after.join_data().get_counts()
-            total_after = sum(counts_after.values())
-            probs_after = {k: v / total_after for k, v in counts_after.items()}
-
-            # Store results
-            submission.measurements_before = json.dumps(counts_before)
-            submission.measurements_after = json.dumps(counts_after)
-            submission.probabilities_before = json.dumps(probs_before)
-            submission.probabilities_after = json.dumps(probs_after)
-
-            # Compute fidelities using custom judge code or defaults
             homework = submission.homework
-            if homework and homework.judge_code:
-                try:
-                    judge_result = execute_judge_code(
-                        homework.judge_code,
-                        counts_before, total_before,
-                        counts_after, total_after,
-                    )
-                    submission.fidelity_before = judge_result['fidelity_before']
-                    submission.fidelity_after = judge_result['fidelity_after']
-                    submission.fidelity_improvement = (
-                        submission.fidelity_after - submission.fidelity_before
-                    )
-                    submission.score = judge_result['score']
-                except Exception as judge_err:
-                    print(f"[HomeworkQueue] Judge code error, using defaults: {judge_err}")
-                    submission.fidelity_before = compute_bell_fidelity(
-                        counts_before, total_before
-                    )
-                    submission.fidelity_after = compute_bell_fidelity(
-                        counts_after, total_after
-                    )
-                    submission.fidelity_improvement = (
-                        submission.fidelity_after - submission.fidelity_before
-                    )
-                    submission.score = compute_homework_score(
-                        submission.fidelity_before, submission.fidelity_after
-                    )
+
+            if eval_method == "tomography":
+                self._process_tomography(submission, results, post_select, homework)
             else:
-                submission.fidelity_before = compute_bell_fidelity(
-                    counts_before, total_before
-                )
-                submission.fidelity_after = compute_bell_fidelity(
-                    counts_after, total_after
-                )
-                submission.fidelity_improvement = (
-                    submission.fidelity_after - submission.fidelity_before
-                )
-                submission.score = compute_homework_score(
-                    submission.fidelity_before, submission.fidelity_after
-                )
+                self._process_inverse_bell(submission, results, post_select, homework)
 
             submission.status = "completed"
             submission.completed_at = datetime.utcnow()
@@ -351,7 +353,7 @@ class HomeworkQueueManager:
                     deduct_budget(db, token_record, execution_time)
 
             print(
-                f"[HomeworkQueue] Submission {submission.id} completed: "
+                f"[HomeworkQueue] Submission {submission.id} completed ({eval_method}): "
                 f"fidelity {submission.fidelity_before:.3f} -> {submission.fidelity_after:.3f}"
             )
 
@@ -360,6 +362,112 @@ class HomeworkQueueManager:
             submission.status = "completed"
             submission.completed_at = datetime.utcnow()
             submission.error_message = f"Results parsing error: {str(e)}"
+
+    def _process_inverse_bell(self, submission, results, post_select, homework):
+        """Process inverse_bell results: 2 pubs (ref, student)."""
+        # pub 0: reference circuit with inverse Bell
+        pub_before = results[0]
+        counts_before = pub_before.join_data().get_counts()
+        total_before = sum(counts_before.values())
+
+        # pub 1: student circuit with inverse Bell
+        pub_after = results[1]
+        counts_after = pub_after.join_data().get_counts()
+        total_after = sum(counts_after.values())
+
+        # Store ZZ-basis counts for display
+        submission.measurements_before = json.dumps(counts_before)
+        submission.measurements_after = json.dumps(counts_after)
+        probs_before = {k: v / total_before for k, v in counts_before.items()}
+        probs_after = {k: v / total_after for k, v in counts_after.items()}
+        submission.probabilities_before = json.dumps(probs_before)
+        submission.probabilities_after = json.dumps(probs_after)
+
+        if homework and homework.judge_code:
+            try:
+                judge_result = execute_judge_code(
+                    homework.judge_code,
+                    counts_before, total_before,
+                    counts_after, total_after,
+                )
+                submission.fidelity_before = judge_result['fidelity_before']
+                submission.fidelity_after = judge_result['fidelity_after']
+                submission.fidelity_improvement = (
+                    submission.fidelity_after - submission.fidelity_before
+                )
+                submission.score = judge_result['score']
+                _, post_selected_shots, _ = _apply_post_selection(counts_after, post_select)
+            except Exception as judge_err:
+                print(f"[HomeworkQueue] Judge code error, using inverse_bell defaults: {judge_err}")
+                self._compute_inverse_bell_fidelities(submission, counts_before, counts_after, post_select)
+                return
+        else:
+            self._compute_inverse_bell_fidelities(submission, counts_before, counts_after, post_select)
+            return
+
+        # Store post-selection stats
+        submission.post_selected_shots = post_selected_shots
+        submission.success_probability = (
+            post_selected_shots / total_after if total_after > 0 else 0.0
+        )
+
+    def _compute_inverse_bell_fidelities(self, submission, counts_before, counts_after, post_select):
+        """Compute fidelities using inverse Bell method."""
+        total_after = sum(counts_after.values())
+
+        # Reference: no post-selection (reference circuit has no ancilla)
+        fid_before, _, _ = compute_fidelity_inverse_bell(counts_before, post_select=None)
+        submission.fidelity_before = fid_before
+
+        # Student: with post-selection
+        fid_after, post_selected_shots, _ = compute_fidelity_inverse_bell(counts_after, post_select)
+        submission.fidelity_after = fid_after
+        submission.fidelity_improvement = fid_after - fid_before
+        submission.score = compute_homework_score(fid_before, fid_after)
+        submission.post_selected_shots = post_selected_shots
+        submission.success_probability = (
+            post_selected_shots / total_after if total_after > 0 else 0.0
+        )
+
+    def _process_tomography(self, submission, results, post_select, homework):
+        """Process tomography results: 6 pubs (ref ZZ/XX/YY, student ZZ/XX/YY)."""
+        # Extract counts from all 6 pubs
+        ref_counts = {}
+        stu_counts = {}
+        for i, basis in enumerate(["ZZ", "XX", "YY"]):
+            pub_ref = results[i]
+            ref_counts[basis] = pub_ref.join_data().get_counts()
+            pub_stu = results[i + 3]
+            stu_counts[basis] = pub_stu.join_data().get_counts()
+
+        # Store ZZ-basis counts for display (most natural)
+        total_before = sum(ref_counts["ZZ"].values())
+        total_after = sum(stu_counts["ZZ"].values())
+        submission.measurements_before = json.dumps(ref_counts["ZZ"])
+        submission.measurements_after = json.dumps(stu_counts["ZZ"])
+        probs_before = {k: v / total_before for k, v in ref_counts["ZZ"].items()} if total_before > 0 else {}
+        probs_after = {k: v / total_after for k, v in stu_counts["ZZ"].items()} if total_after > 0 else {}
+        submission.probabilities_before = json.dumps(probs_before)
+        submission.probabilities_after = json.dumps(probs_after)
+
+        # Reference fidelity: no post-selection
+        fid_before, corr_before, _ = compute_fidelity_tomography(
+            ref_counts["ZZ"], ref_counts["XX"], ref_counts["YY"], post_select=None
+        )
+        submission.fidelity_before = fid_before
+
+        # Student fidelity: with post-selection
+        fid_after, corr_after, min_ps = compute_fidelity_tomography(
+            stu_counts["ZZ"], stu_counts["XX"], stu_counts["YY"], post_select=post_select
+        )
+        submission.fidelity_after = fid_after
+        submission.fidelity_improvement = fid_after - fid_before
+        submission.score = compute_homework_score(fid_before, fid_after)
+        submission.tomography_correlators = json.dumps(corr_after)
+        submission.post_selected_shots = min_ps
+        submission.success_probability = (
+            min_ps / total_after if total_after > 0 else 0.0
+        )
 
     def get_queue_status(
         self, db: Session, homework_id: str, token_record: Optional[HomeworkToken] = None

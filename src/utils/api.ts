@@ -991,6 +991,8 @@ export interface HomeworkInfo {
   allowed_backends?: string[];
   deadline?: string;
   reference_circuit?: string;
+  display_name?: string | null;
+  method_name?: string | null;
   error?: string;
 }
 
@@ -1013,6 +1015,10 @@ export interface HomeworkSubmissionResult {
   gate_count?: number | null;
   circuit_depth?: number | null;
   execution_time_seconds?: number | null;
+  success_probability?: number | null;
+  post_selected_shots?: number | null;
+  eval_method?: string;
+  tomography_correlators?: Record<string, number> | null;
   error_message?: string | null;
   created_at: string;
   started_at?: string | null;
@@ -1056,13 +1062,18 @@ export interface HomeworkQueueStatus {
 
 export interface HomeworkLeaderboardEntryType {
   rank: number;
+  submission_id: string;
   student_label: string;
+  display_name?: string | null;
+  method_name?: string | null;
   fidelity_before: number;
   fidelity_after: number;
   fidelity_improvement: number;
   score: number;
-  submission_count: number;
-  best_submission_at?: string | null;
+  submitted_at?: string | null;
+  backend_name?: string | null;
+  success_probability?: number | null;
+  eval_method?: string | null;
 }
 
 export interface HomeworkLeaderboard {
@@ -1073,6 +1084,42 @@ export interface HomeworkLeaderboard {
   updated_at: string;
 }
 
+export interface HardwareRankingEntryType {
+  rank: number;
+  backend_name: string;
+  avg_fidelity_before: number;
+  avg_fidelity_after: number;
+  avg_fidelity_improvement: number;
+  best_fidelity_after: number;
+  worst_fidelity_after: number;
+  total_jobs: number;
+  unique_students: number;
+  avg_success_probability?: number | null;
+}
+
+export interface HardwareRanking {
+  homework_id: string;
+  homework_title: string;
+  rankings: HardwareRankingEntryType[];
+  total_completed_jobs: number;
+  updated_at: string;
+}
+
+export interface CheckTranspileResult {
+  success: boolean;
+  error?: string;
+  initial_layout?: number[];
+  post_select?: string[];
+  qubit_count?: number;
+  gate_count?: number;
+  circuit_depth?: number;
+  transpiled_qasm?: string;
+  transpiled_depth?: number;
+  transpiled_gate_count?: number;
+  transpiled_qubit_count?: number;
+  physical_qubits?: number[];
+}
+
 export interface HomeworkCreateResult {
   id: string;
   title: string;
@@ -1081,13 +1128,16 @@ export interface HomeworkCreateResult {
 }
 
 export interface HomeworkTokenGenResult {
-  tokens: Array<{ student_uid: string; token: string }>;
+  tokens: Array<{ student_uid: string; display_name?: string | null; token: string }>;
   count: number;
 }
 
 export interface HomeworkTokenAdmin {
   id: string;
   student_uid_hash: string;
+  student_uid_raw?: string | null;
+  display_name?: string | null;
+  token?: string | null;
   budget_used_seconds: number;
   budget_limit_seconds: number;
   is_active: boolean;
@@ -1107,6 +1157,49 @@ export interface HomeworkBudgetSummary {
   students: HomeworkTokenAdmin[];
 }
 
+export interface AdminSubmission {
+  id: string;
+  homework_id: string;
+  token_id: string;
+  status: string;
+  queue_position?: number | null;
+  backend_name: string;
+  shots: number;
+  ibmq_job_id_before?: string | null;
+  ibmq_job_id_after?: string | null;
+  fidelity_before?: number | null;
+  fidelity_after?: number | null;
+  fidelity_improvement?: number | null;
+  score?: number | null;
+  measurements_before?: Record<string, number> | null;
+  measurements_after?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_seconds?: number | null;
+  success_probability?: number | null;
+  post_selected_shots?: number | null;
+  eval_method?: string;
+  tomography_correlators?: Record<string, number> | null;
+  error_message?: string | null;
+  code_before?: string | null;
+  code_after?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  student_uid_hash: string;
+  display_name?: string | null;
+  method_name?: string | null;
+  student_label: string;
+}
+
+export interface AdminSubmissionList {
+  submissions: AdminSubmission[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export interface HomeworkListItem {
   id: string;
   title: string;
@@ -1120,7 +1213,54 @@ export interface HomeworkListItem {
   created_at?: string | null;
 }
 
+export interface HomeworkPublicInfo {
+  id: string;
+  title: string;
+  course?: string;
+  description?: string;
+  deadline?: string;
+  reference_circuit?: string;
+  allowed_backends: string[];
+  default_shots?: number;
+  is_active: boolean;
+}
+
+export interface HomeworkSimulateResult {
+  success: boolean;
+  error?: string;
+  fidelity_before?: number | null;
+  fidelity_after?: number | null;
+  fidelity_improvement?: number | null;
+  score?: number | null;
+  measurements_before?: Record<string, number> | null;
+  measurements_after?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_ms?: number | null;
+  success_probability?: number | null;
+  post_selected_shots?: number | null;
+  eval_method?: string;
+  tomography_correlators?: Record<string, number> | null;
+  backend: string;
+}
+
 export const homeworkApi = {
+  /**
+   * Get public homework info (no auth required)
+   */
+  getInfo: (homeworkId: string) =>
+    apiRequest<HomeworkPublicInfo>(`/homework/info/${homeworkId}`),
+
+  /**
+   * Run on noisy simulator (no auth required)
+   */
+  simulate: (data: { homework_id: string; code: string; shots?: number; mode?: string; eval_method?: string }) =>
+    apiRequest<HomeworkSimulateResult>('/homework/simulate', {
+      method: 'POST',
+      body: data,
+    }),
+
   /**
    * Verify a student's homework token
    */
@@ -1138,6 +1278,8 @@ export const homeworkApi = {
     code: string;
     backend: string;
     shots?: number;
+    eval_method?: string;
+    ibmq_api_key?: string;
   }) =>
     apiRequest<HomeworkSubmissionResult>('/homework/submit', {
       method: 'POST',
@@ -1171,10 +1313,34 @@ export const homeworkApi = {
   },
 
   /**
+   * Update student's leaderboard display name and method name
+   */
+  updateProfile: (data: { token: string; display_name?: string; method_name?: string }) =>
+    apiRequest<{ display_name?: string | null; method_name?: string | null }>('/homework/update-profile', {
+      method: 'POST',
+      body: data,
+    }),
+
+  /**
    * Get homework leaderboard
    */
   getLeaderboard: (homeworkId: string) =>
     apiRequest<HomeworkLeaderboard>(`/homework/leaderboard/${homeworkId}`),
+
+  /**
+   * Get hardware ranking by average fidelity
+   */
+  getHardwareRanking: (homeworkId: string) =>
+    apiRequest<HardwareRanking>(`/homework/hardware-ranking/${homeworkId}`),
+
+  /**
+   * Check how code would be transpiled for a specific backend
+   */
+  checkTranspile: (data: { homework_id: string; code: string; backend_name: string; eval_method?: string }) =>
+    apiRequest<CheckTranspileResult>('/homework/check-transpile', {
+      method: 'POST',
+      body: data,
+    }),
 
   // ---- Admin endpoints ----
 
@@ -1206,12 +1372,12 @@ export const homeworkApi = {
   /**
    * Generate tokens for student UIDs (admin)
    */
-  generateTokens: (homeworkId: string, studentUids: string[]) =>
+  generateTokens: (homeworkId: string, students: Array<{ uid: string; display_name?: string }>) =>
     apiRequest<HomeworkTokenGenResult>(
       `/homework/admin/${homeworkId}/generate-tokens`,
       {
         method: 'POST',
-        body: { student_uids: studentUids },
+        body: { students },
         requireAuth: true,
       }
     ),
@@ -1261,4 +1427,47 @@ export const homeworkApi = {
       body: data,
       requireAuth: true,
     }),
+
+  /**
+   * Get all submissions for a homework (admin)
+   */
+  getAdminSubmissions: (homeworkId: string, options?: {
+    page?: number;
+    page_size?: number;
+    status?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.page_size) params.append('page_size', options.page_size.toString());
+    if (options?.status) params.append('status', options.status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<AdminSubmissionList>(
+      `/homework/admin/${homeworkId}/submissions${query}`,
+      { requireAuth: true }
+    );
+  },
+
+  /**
+   * Delete a submission (admin)
+   */
+  deleteSubmission: (submissionId: string) =>
+    apiRequest<{ message: string; id: string }>(
+      `/homework/admin/submissions/${submissionId}`,
+      { method: 'DELETE', requireAuth: true }
+    ),
+
+  /**
+   * Admin direct submit to hardware
+   */
+  adminSubmit: (homeworkId: string, data: {
+    code: string;
+    backend_name: string;
+    shots?: number;
+    eval_method?: string;
+    label?: string;
+  }) =>
+    apiRequest<HomeworkSubmissionResult>(
+      `/homework/admin/${homeworkId}/submit`,
+      { method: 'POST', body: data, requireAuth: true }
+    ),
 };

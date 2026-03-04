@@ -111,12 +111,24 @@ export default function CircuitCanvas({
     // Check if we're moving an existing gate
     const existingGateId = e.dataTransfer.getData('existingGateId')
     if (existingGateId) {
-      // Check if target cell is occupied (excluding the gate being moved)
-      if (isCellOccupied(qubitIndex, column, existingGateId)) {
-        showWarning('Cannot move gate: position already occupied')
-        setDraggingExistingGate(null)
-        setHoveredCell(null)
-        return
+      const movingGate = circuit.gates.find(g => g.id === existingGateId)
+      if (movingGate && movingGate.qubits.length > 1) {
+        // Multi-qubit gate: check all its qubit positions in the target column
+        const blocked = movingGate.qubits.some(q => isCellOccupied(q, column, existingGateId))
+        if (blocked) {
+          showWarning('Cannot move gate: position already occupied')
+          setDraggingExistingGate(null)
+          setHoveredCell(null)
+          return
+        }
+      } else {
+        // Single-qubit gate: check just the target cell
+        if (isCellOccupied(qubitIndex, column, existingGateId)) {
+          showWarning('Cannot move gate: position already occupied')
+          setDraggingExistingGate(null)
+          setHoveredCell(null)
+          return
+        }
       }
       onMoveGate(existingGateId, qubitIndex, column)
       setDraggingExistingGate(null)
@@ -217,8 +229,8 @@ export default function CircuitCanvas({
     // Check if this is part of a BARRIER
     const isBarrier = gate && gate.type === 'BARRIER'
 
-    // For single-qubit gates, only the gate's qubit is draggable
-    const isSingleQubitDraggable = gate && gate.qubits.length === 1 && gate.qubits[0] === qubitIndex
+    // Any gate (except barriers) is draggable from any of its qubit positions
+    const isGateDraggable = gate && !isBarrier
 
     return (
       <div
@@ -250,11 +262,11 @@ export default function CircuitCanvas({
                 ? 'ring-2 ring-amber-400 ring-offset-1 rounded animate-pulse'
                 : ''
             }`}
-            draggable={isSingleQubitDraggable && !isBarrier}
-            onDragStart={(e) => isSingleQubitDraggable && !isBarrier && handleGateDragStart(e, gate)}
+            draggable={isGateDraggable && !isBarrier}
+            onDragStart={(e) => isGateDraggable && !isBarrier && handleGateDragStart(e, gate)}
             onDragEnd={handleGateDragEnd}
             onClick={(e) => handleGateClick(e, gate)}
-            style={{ cursor: isSingleQubitDraggable && !isBarrier ? 'grab' : 'pointer' }}
+            style={{ cursor: isGateDraggable && !isBarrier ? 'grab' : 'pointer' }}
           >
             {isBarrier ? (
               // BARRIER - show dashed line segment
@@ -308,7 +320,7 @@ export default function CircuitCanvas({
             )}
 
             {/* Drag handle indicator for draggable gates */}
-            {isSingleQubitDraggable && !isBarrier && (
+            {isGateDraggable && !isBarrier && (
               <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-4 opacity-0 group-hover:opacity-50 transition-opacity flex flex-col justify-center gap-0.5">
                 <div className="w-full h-0.5 bg-gray-400 rounded" />
                 <div className="w-full h-0.5 bg-gray-400 rounded" />

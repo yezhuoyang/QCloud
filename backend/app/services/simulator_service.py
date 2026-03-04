@@ -70,7 +70,7 @@ class SimulatorService:
 
             # Use secure code validator to parse circuit
             from .code_validator import execute_circuit_code
-            circuit, parse_error = execute_circuit_code(code)
+            circuit, _post_select, _layout, parse_error = execute_circuit_code(code)
 
             if circuit is None:
                 return {

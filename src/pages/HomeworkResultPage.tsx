@@ -87,10 +87,21 @@ function HomeworkResultPage() {
                  submission.status === 'queued' ? `In Queue (Position #${submission.queue_position})` :
                  'Failed'}
               </h2>
-              {submission.status === 'completed' && submission.score != null && (
+              {submission.status === 'completed' && submission.fidelity_after != null && (
                 <p className="text-3xl font-bold text-qcloud-primary mt-2">
-                  Score: {submission.score}/100
+                  Fidelity: {((submission.fidelity_after) * 100).toFixed(1)}%
                 </p>
+              )}
+              {submission.eval_method && (
+                <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  submission.eval_method === 'tomography' ? 'bg-purple-100 text-purple-700' :
+                  submission.eval_method === 'inverse_bell' ? 'bg-teal-100 text-teal-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>
+                  {submission.eval_method === 'inverse_bell' ? 'Inverse Bell' :
+                   submission.eval_method === 'tomography' ? 'Tomography' :
+                   submission.eval_method}
+                </span>
               )}
               {submission.error_message && (
                 <p className="text-sm text-red-600 mt-2">{submission.error_message}</p>
@@ -115,7 +126,7 @@ function HomeworkResultPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-qcloud-muted mb-1">Your Circuit</div>
+                    <div className="text-sm text-qcloud-muted mb-1">Your Circuit (Post-Selected)</div>
                     <div className="text-2xl font-bold text-qcloud-primary">
                       {((submission.fidelity_after || 0) * 100).toFixed(1)}%
                     </div>
@@ -136,6 +147,48 @@ function HomeworkResultPage() {
                     </div>
                   </div>
                 </div>
+                {/* Post-Selection Stats */}
+                {submission.success_probability != null && (
+                  <div className="mt-4 pt-4 border-t border-qcloud-border">
+                    <div className="grid grid-cols-2 gap-6 text-center">
+                      <div>
+                        <div className="text-sm text-qcloud-muted mb-1">Success Probability (Post-Selection)</div>
+                        <div className="text-xl font-bold text-amber-600">
+                          {(submission.success_probability * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                      {submission.post_selected_shots != null && (
+                        <div>
+                          <div className="text-sm text-qcloud-muted mb-1">Post-Selected Shots</div>
+                          <div className="text-xl font-bold text-qcloud-text">
+                            {submission.post_selected_shots} / {submission.shots}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* Tomography Correlators */}
+                {submission.tomography_correlators && (
+                  <div className="mt-4 pt-4 border-t border-qcloud-border">
+                    <h4 className="text-sm font-medium text-qcloud-text mb-3">Pauli Correlators</h4>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      {Object.entries(submission.tomography_correlators).map(([basis, val]) => (
+                        <div key={basis}>
+                          <div className="text-sm text-qcloud-muted mb-1">{basis}</div>
+                          <div className={`text-xl font-bold font-mono ${
+                            typeof val === 'number' && val >= 0 ? 'text-green-600' : 'text-red-500'
+                          }`}>
+                            {typeof val === 'number' ? (val >= 0 ? '+' : '') + val.toFixed(3) : val}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-qcloud-muted mt-2 text-center">
+                      {'F(|Φ+⟩) = (1 + ⟨XX⟩ − ⟨YY⟩ + ⟨ZZ⟩) / 4'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -187,6 +240,51 @@ function HomeworkResultPage() {
                 )}
               </div>
             </div>
+
+            {/* IBM Job Details */}
+            {(submission.ibmq_job_id_before || submission.ibmq_job_id_after) && (
+              <div className="bg-white rounded-xl border border-qcloud-border p-6">
+                <h3 className="font-semibold text-qcloud-text mb-4">IBM Job Details</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-qcloud-muted">Submission ID</span>
+                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded select-all">{submission.id}</span>
+                  </div>
+                  {submission.ibmq_job_id_before && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-qcloud-muted">Reference Job</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded select-all">{submission.ibmq_job_id_before}</span>
+                        <a
+                          href={`https://quantum.ibm.com/jobs/${submission.ibmq_job_id_before}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-qcloud-primary hover:underline text-xs"
+                        >
+                          View on IBM
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {submission.ibmq_job_id_after && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-qcloud-muted">Your Circuit Job</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded select-all">{submission.ibmq_job_id_after}</span>
+                        <a
+                          href={`https://quantum.ibm.com/jobs/${submission.ibmq_job_id_after}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-qcloud-primary hover:underline text-xs"
+                        >
+                          View on IBM
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Measurement Results */}
             {submission.measurements_after && (

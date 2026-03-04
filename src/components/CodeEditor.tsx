@@ -1,4 +1,6 @@
-import Editor from '@monaco-editor/react'
+import { useRef, useEffect } from 'react'
+import Editor, { type OnMount } from '@monaco-editor/react'
+import type * as Monaco from 'monaco-editor'
 
 interface CodeEditorProps {
   value: string
@@ -6,13 +8,39 @@ interface CodeEditorProps {
 }
 
 function CodeEditor({ value, onChange }: CodeEditorProps) {
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
+  const onChangeRef = useRef(onChange)
+  const lastEmittedValue = useRef(value)
+
+  // Keep onChange ref fresh without re-registering listeners
+  onChangeRef.current = onChange
+
+  const handleMount: OnMount = (editor) => {
+    editorRef.current = editor
+    editor.onDidChangeModelContent(() => {
+      const current = editor.getValue()
+      lastEmittedValue.current = current
+      onChangeRef.current(current)
+    })
+  }
+
+  // Only apply truly external value changes (e.g. composer → code switch).
+  // Skip if value matches what we last emitted — that's just our own onChange echoing back.
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    if (value === lastEmittedValue.current) return
+    lastEmittedValue.current = value
+    editor.setValue(value)
+  }, [value])
+
   return (
     <Editor
       height="100%"
       defaultLanguage="python"
       theme="vs-dark"
-      value={value}
-      onChange={onChange}
+      defaultValue={value}
+      onMount={handleMount}
       options={{
         fontSize: 14,
         fontFamily: "'Fira Code', 'Consolas', monospace",
@@ -21,7 +49,7 @@ function CodeEditor({ value, onChange }: CodeEditorProps) {
         automaticLayout: true,
         tabSize: 4,
         insertSpaces: true,
-        wordWrap: 'on',
+        wordWrap: 'off',
         lineNumbers: 'on',
         renderLineHighlight: 'line',
         selectOnLineNumbers: true,
@@ -34,6 +62,7 @@ function CodeEditor({ value, onChange }: CodeEditorProps) {
         foldingHighlight: true,
         showFoldingControls: 'mouseover',
         bracketPairColorization: { enabled: true },
+        fixedOverflowWidgets: true,
       }}
     />
   )

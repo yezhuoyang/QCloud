@@ -424,7 +424,8 @@ def _parse_circuit_from_code(code: str) -> tuple[Optional[Any], Optional[str]]:
         Tuple of (circuit, error_message)
     """
     from ..services.code_validator import execute_circuit_code
-    return execute_circuit_code(code)
+    circuit, _post_select, _layout, error = execute_circuit_code(code)
+    return circuit, error
 
 
 @router.post("/status", response_model=JobStatusResponse)

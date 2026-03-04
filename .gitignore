@@ -43,3 +43,9 @@ ENV/
 # Logs
 *.log
 npm-debug.log*
+
+# Student data (sensitive)
+qa_uid.xlsx
+
+# Local dev scripts
+start_local.bat
