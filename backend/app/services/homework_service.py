@@ -473,61 +473,55 @@ def simulate_homework_noisy(
 
     # === Distillation mode ===
 
-    if not reference_circuit_code:
-        return {"success": False, "error": "Homework has no reference circuit configured."}
+    has_reference = bool(reference_circuit_code and reference_circuit_code.strip())
 
-    circuit_before, _, _, err = execute_circuit_code(reference_circuit_code)
-    if circuit_before is None:
-        return {"success": False, "error": f"Reference circuit error: {err}"}
-
-    has_measure_before = any(isinstance(inst.operation, Measure) for inst in circuit_before)
-    if not has_measure_before:
-        circuit_before.measure_all()
+    circuit_before = None
+    if has_reference:
+        circuit_before, _, _, err = execute_circuit_code(reference_circuit_code)
+        if circuit_before is None:
+            return {"success": False, "error": f"Reference circuit error: {err}"}
+        has_measure_before = any(isinstance(inst.operation, Measure) for inst in circuit_before)
+        if not has_measure_before:
+            circuit_before.measure_all()
 
     tomography_correlators = None
+    fidelity_before = 0.0
+    counts_before_display = None
 
     if eval_method == "tomography":
-        # ---- Pauli Correlator Tomography ----
-        # Create 3 circuit variants for each (reference + student)
-        tomo_before = prepare_tomography_circuits(circuit_before)
         tomo_after = prepare_tomography_circuits(circuit_after)
-
-        # Run all 6 circuits
-        counts_before_zz = _run_noisy_simulation(tomo_before["ZZ"], simulator, shots)
-        counts_before_xx = _run_noisy_simulation(tomo_before["XX"], simulator, shots)
-        counts_before_yy = _run_noisy_simulation(tomo_before["YY"], simulator, shots)
         counts_after_zz = _run_noisy_simulation(tomo_after["ZZ"], simulator, shots)
         counts_after_xx = _run_noisy_simulation(tomo_after["XX"], simulator, shots)
         counts_after_yy = _run_noisy_simulation(tomo_after["YY"], simulator, shots)
 
-        # Reference fidelity (no post-selection, bare Bell pair)
-        fidelity_before, _, _ = compute_fidelity_tomography(
-            counts_before_zz, counts_before_xx, counts_before_yy, post_select=None
-        )
-        # Student fidelity (with post-selection)
+        if has_reference:
+            tomo_before = prepare_tomography_circuits(circuit_before)
+            counts_before_zz = _run_noisy_simulation(tomo_before["ZZ"], simulator, shots)
+            counts_before_xx = _run_noisy_simulation(tomo_before["XX"], simulator, shots)
+            counts_before_yy = _run_noisy_simulation(tomo_before["YY"], simulator, shots)
+            fidelity_before, _, _ = compute_fidelity_tomography(
+                counts_before_zz, counts_before_xx, counts_before_yy, post_select=None
+            )
+            counts_before_display = counts_before_zz
+
         fidelity_after, tomography_correlators, post_selected_shots = compute_fidelity_tomography(
             counts_after_zz, counts_after_xx, counts_after_yy, post_select
         )
-
-        # Use ZZ-basis counts for display (most natural)
-        counts_before_display = counts_before_zz
         counts_after_display = counts_after_zz
         total_after = sum(counts_after_zz.values())
 
     else:
-        # ---- Inverse Bell Verifier (default) ----
-        ib_before = prepare_inverse_bell_circuit(circuit_before)
         ib_after = prepare_inverse_bell_circuit(circuit_after)
-
-        counts_before_display = _run_noisy_simulation(ib_before, simulator, shots)
         counts_after_display = _run_noisy_simulation(ib_after, simulator, shots)
         total_after = sum(counts_after_display.values())
 
-        # Reference fidelity (no post-selection)
-        fidelity_before, _, _ = compute_fidelity_inverse_bell(
-            counts_before_display, post_select=None
-        )
-        # Student fidelity (with post-selection)
+        if has_reference:
+            ib_before = prepare_inverse_bell_circuit(circuit_before)
+            counts_before_display = _run_noisy_simulation(ib_before, simulator, shots)
+            fidelity_before, _, _ = compute_fidelity_inverse_bell(
+                counts_before_display, post_select=None
+            )
+
         fidelity_after, post_selected_shots, _ = compute_fidelity_inverse_bell(
             counts_after_display, post_select
         )
