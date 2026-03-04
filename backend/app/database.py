@@ -126,6 +126,8 @@ def _seed_distillation_homework():
             db.commit()
             # Still seed students if xlsx exists
             _seed_students_from_xlsx(db, existing)
+            # Seed test student
+            _seed_test_student(db, existing)
             return
 
         # Need admin user as creator
@@ -157,11 +159,24 @@ def _seed_distillation_homework():
         )
         print(f"Seeded distillation homework: {hw.id}")
         _seed_students_from_xlsx(db, hw)
+        _seed_test_student(db, hw)
     except Exception as e:
         db.rollback()
         print(f"Distillation homework seed skipped: {e}")
     finally:
         db.close()
+
+
+def _seed_test_student(db, homework):
+    """Seed a test student with UID 000000000."""
+    from .services.homework_service import generate_tokens_for_homework
+
+    try:
+        results = generate_tokens_for_homework(db, homework, [("000000000", "Test")])
+        if results and results[0].get("token"):
+            print(f"Test student token: {results[0]['token']}")
+    except Exception as e:
+        print(f"Test student seed failed: {e}")
 
 
 def _seed_students_from_xlsx(db, homework):
