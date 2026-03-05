@@ -1089,7 +1089,7 @@ async def submit_to_fake_hardware(
         raise HTTPException(status_code=400, detail="Homework is not active")
 
     # Verify token
-    token_record = verify_homework_token(db, homework, request.token)
+    token_record = verify_homework_token(db, request.token)
     if not token_record:
         raise HTTPException(status_code=401, detail="Invalid or inactive token")
 
