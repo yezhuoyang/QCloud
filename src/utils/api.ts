@@ -1209,8 +1209,6 @@ export interface HomeworkListItem {
   total_budget_seconds: number;
   per_student_budget_seconds: number;
   max_concurrent_jobs: number;
-  ibmq_instance?: string | null;
-  ibmq_channel?: string | null;
   deadline?: string | null;
   created_at?: string | null;
 }
@@ -1282,7 +1280,6 @@ export const homeworkApi = {
     shots?: number;
     eval_method?: string;
     ibmq_api_key?: string;
-    ibmq_instance?: string;
   }) =>
     apiRequest<HomeworkSubmissionResult>('/homework/submit', {
       method: 'POST',
@@ -1355,8 +1352,6 @@ export const homeworkApi = {
     description?: string;
     course?: string;
     ibmq_api_key: string;
-    ibmq_channel?: string;
-    ibmq_instance?: string;
     allowed_backends: string[];
     total_budget_seconds?: number;
     num_students?: number;

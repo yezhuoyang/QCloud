@@ -40,8 +40,6 @@ function AdminHomeworkPage() {
   const [createBudget, setCreateBudget] = useState(21600)
   const [createStudents, setCreateStudents] = useState(30)
   const [createConcurrency, setCreateConcurrency] = useState(3)
-  const [createChannel, setCreateChannel] = useState('ibm_cloud')
-  const [createInstance, setCreateInstance] = useState('')
   const [createReferenceCircuit, setCreateReferenceCircuit] = useState(`# Reference Bell Pair Circuit (baseline)
 qc = QuantumCircuit(2, 2)
 qc.h(0)
@@ -90,8 +88,6 @@ POST_SELECT = {"00"}
   const [adminSubmitMsg, setAdminSubmitMsg] = useState<string | null>(null)
 
   // Settings
-  const [settingsInstance, setSettingsInstance] = useState('')
-  const [settingsChannel, setSettingsChannel] = useState('')
   const [settingsApiKey, setSettingsApiKey] = useState('')
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null)
@@ -147,14 +143,9 @@ POST_SELECT = {"00"}
     if (activeTab === 'submissions') fetchSubmissions(selectedHomework, 1, statusFilter || undefined)
     else if (activeTab === 'students') fetchBudgets(selectedHomework)
     else if (activeTab === 'settings') {
-      const hw = homeworks.find(h => h.id === selectedHomework)
-      if (hw) {
-        setSettingsInstance(hw.ibmq_instance || '')
-        setSettingsChannel(hw.ibmq_channel || '')
-        setSettingsMsg(null)
-      }
+      setSettingsMsg(null)
     }
-  }, [selectedHomework, activeTab, fetchSubmissions, fetchBudgets, statusFilter, homeworks])
+  }, [selectedHomework, activeTab, fetchSubmissions, fetchBudgets, statusFilter])
 
   // -- Handlers --
 
@@ -167,8 +158,6 @@ POST_SELECT = {"00"}
         title: createTitle,
         description: createDescription,
         ibmq_api_key: createApiKey,
-        ibmq_channel: createChannel,
-        ibmq_instance: createInstance || undefined,
         allowed_backends: backends,
         total_budget_seconds: createBudget,
         num_students: createStudents,
@@ -266,15 +255,13 @@ POST_SELECT = {"00"}
     setSettingsMsg(null)
     try {
       const updates: Record<string, unknown> = {}
-      if (settingsInstance) updates.ibmq_instance = settingsInstance
-      if (settingsChannel) updates.ibmq_channel = settingsChannel
       if (settingsApiKey.trim()) updates.ibmq_api_key = settingsApiKey.trim()
+      if (Object.keys(updates).length === 0) {
+        setSettingsMsg('No changes to save')
+        setIsSavingSettings(false)
+        return
+      }
       await homeworkApi.updateHomework(selectedHomework, updates)
-      // Update local homework list with new values
-      setHomeworks(prev => prev.map(h => h.id === selectedHomework
-        ? { ...h, ibmq_instance: settingsInstance || h.ibmq_instance, ibmq_channel: settingsChannel || h.ibmq_channel }
-        : h
-      ))
       setSettingsApiKey('')
       setSettingsMsg('Settings saved successfully')
     } catch (err: any) {
@@ -345,25 +332,11 @@ POST_SELECT = {"00"}
                 <input type="text" value={createTitle} onChange={e => setCreateTitle(e.target.value)}
                   className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm" />
               </div>
-              <div>
-                <label className="text-sm text-qcloud-muted block mb-1">IBM Channel</label>
-                <select value={createChannel} onChange={e => setCreateChannel(e.target.value)}
-                  className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm">
-                  <option value="ibm_cloud">ibm_cloud</option>
-                  <option value="ibm_quantum">ibm_quantum</option>
-                </select>
-              </div>
               <div className="col-span-2">
                 <label className="text-sm text-qcloud-muted block mb-1">IBM API Key (will be encrypted)</label>
                 <input type="password" value={createApiKey} onChange={e => setCreateApiKey(e.target.value)}
                   placeholder="Paste your IBM Quantum API key..."
                   className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono" />
-              </div>
-              <div>
-                <label className="text-sm text-qcloud-muted block mb-1">IBM Instance (optional)</label>
-                <input type="text" value={createInstance} onChange={e => setCreateInstance(e.target.value)}
-                  placeholder="e.g., ibm-q/open/main"
-                  className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm" />
               </div>
               <div>
                 <label className="text-sm text-qcloud-muted block mb-1">Allowed Backends (comma-separated)</label>
@@ -884,36 +857,11 @@ POST_SELECT = {"00"}
         {/* Settings Tab */}
         {selectedHomework && activeTab === 'settings' && (
           <div className="space-y-4">
-            {/* IBMQ Connection */}
             <div className="bg-white rounded-xl border border-qcloud-border p-5">
-              <h3 className="font-semibold text-qcloud-text mb-1">IBM Quantum Connection</h3>
+              <h3 className="font-semibold text-qcloud-text mb-1">IBM Quantum API Key</h3>
               <p className="text-xs text-qcloud-muted mb-4">
-                Configure the IBM Quantum instance and channel used for submitting jobs.
+                The API key used to submit jobs to IBM quantum hardware. It is stored encrypted. Enter a new key to replace the current one.
               </p>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="text-sm text-qcloud-muted block mb-1">Instance Name</label>
-                  <input
-                    type="text"
-                    value={settingsInstance}
-                    onChange={e => setSettingsInstance(e.target.value)}
-                    placeholder="e.g. ibm-q/open/main"
-                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
-                  />
-                  <p className="text-[10px] text-qcloud-muted mt-1">The IBM instance name (hub/group/project format)</p>
-                </div>
-                <div>
-                  <label className="text-sm text-qcloud-muted block mb-1">Channel</label>
-                  <input
-                    type="text"
-                    value={settingsChannel}
-                    onChange={e => setSettingsChannel(e.target.value)}
-                    placeholder="e.g. ibm_cloud or ibm_quantum"
-                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
-                  />
-                  <p className="text-[10px] text-qcloud-muted mt-1">ibm_cloud or ibm_quantum</p>
-                </div>
-              </div>
 
               <div className="mb-4">
                 <label className="text-sm text-qcloud-muted block mb-1">API Key (leave empty to keep current)</label>

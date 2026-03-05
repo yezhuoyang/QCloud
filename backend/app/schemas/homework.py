@@ -57,7 +57,6 @@ class HomeworkSubmitRequest(BaseModel):
     shots: int = Field(default=1024, ge=1, le=8192)
     eval_method: str = Field(default="inverse_bell", description="'inverse_bell' or 'tomography'")
     ibmq_api_key: Optional[str] = Field(None, description="Optional student-provided IBM API key")
-    ibmq_instance: Optional[str] = Field(None, description="Optional student-provided IBM instance name")
 
 
 class HomeworkSubmissionResponse(BaseModel):
@@ -196,8 +195,6 @@ class HomeworkCreateRequest(BaseModel):
     description: Optional[str] = Field(None, description="Homework description (markdown)")
     course: str = Field(default="CS 238B")
     ibmq_api_key: str = Field(..., description="Raw IBM API key (will be encrypted)")
-    ibmq_channel: str = Field(default="ibm_cloud")
-    ibmq_instance: Optional[str] = None
     allowed_backends: List[str] = Field(..., description="List of allowed IBM backend names")
     total_budget_seconds: int = Field(default=21600, description="Total budget in seconds (default 6h)")
     num_students: int = Field(default=30)
@@ -279,8 +276,6 @@ class HomeworkUpdateRequest(BaseModel):
     reference_circuit: Optional[str] = None
     judge_code: Optional[str] = None
     ibmq_api_key: Optional[str] = Field(None, description="New IBM API key (will be re-encrypted)")
-    ibmq_instance: Optional[str] = Field(None, description="IBM instance name")
-    ibmq_channel: Optional[str] = Field(None, description="IBM channel (e.g. ibm_cloud)")
 
 
 class HomeworkTokenUpdateRequest(BaseModel):

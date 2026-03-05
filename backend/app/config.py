@@ -18,8 +18,6 @@ class Settings(BaseSettings):
 
     # IBMQ
     ibmq_token: str = ""
-    ibmq_instance: str = "ibm-q/open/main"
-    ibmq_channel: str = "ibm_cloud"  # "ibm_cloud" or "ibm_quantum"
     ibmq_backend: str = "ibm_torino"  # default backend
 
     # CORS

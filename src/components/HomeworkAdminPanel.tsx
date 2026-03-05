@@ -67,10 +67,8 @@ POST_SELECT = {"00"}
   const [generatedTokens, setGeneratedTokens] = useState<HomeworkTokenGenResult | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Settings (API key, instance, channel)
+  // Settings (API key)
   const [apiKey, setApiKey] = useState('')
-  const [settingsInstance, setSettingsInstance] = useState('')
-  const [settingsChannel, setSettingsChannel] = useState('')
   const [isSavingApiKey, setIsSavingApiKey] = useState(false)
   const [apiKeyMsg, setApiKeyMsg] = useState<string | null>(null)
 
@@ -189,20 +187,15 @@ POST_SELECT = {"00"}
   }
 
   const handleSaveSettings = async () => {
+    if (!apiKey.trim()) {
+      setApiKeyMsg('No changes to save')
+      return
+    }
     setIsSavingApiKey(true)
     setApiKeyMsg(null)
     try {
-      const updates: Record<string, unknown> = {}
-      if (apiKey.trim()) updates.ibmq_api_key = apiKey.trim()
-      if (settingsInstance) updates.ibmq_instance = settingsInstance
-      if (settingsChannel) updates.ibmq_channel = settingsChannel
-      if (Object.keys(updates).length === 0) {
-        setApiKeyMsg('No changes to save')
-        setIsSavingApiKey(false)
-        return
-      }
-      await homeworkApi.updateHomework(homeworkId, updates)
-      setApiKeyMsg('Settings saved successfully')
+      await homeworkApi.updateHomework(homeworkId, { ibmq_api_key: apiKey.trim() })
+      setApiKeyMsg('API key updated successfully')
       setApiKey('')
     } catch (err: any) {
       setApiKeyMsg(`Error: ${err.detail || err.message || 'Failed to save settings'}`)
@@ -752,58 +745,32 @@ POST_SELECT = {"00"}
         {activeTab === 'settings' && (
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-qcloud-border p-5">
-              <h3 className="font-semibold text-qcloud-text mb-1">IBM Quantum Connection</h3>
+              <h3 className="font-semibold text-qcloud-text mb-1">IBM Quantum API Key</h3>
               <p className="text-xs text-qcloud-muted mb-4">
-                Configure the IBM Quantum instance, channel, and API key for submitting jobs.
+                The API key used to submit jobs to IBM quantum hardware. It is stored encrypted. Enter a new key to replace the current one.
               </p>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="text-sm text-qcloud-muted block mb-1">Instance Name</label>
-                  <input
-                    type="text"
-                    value={settingsInstance}
-                    onChange={e => setSettingsInstance(e.target.value)}
-                    placeholder="e.g. ibm-q/open/main"
-                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
-                  />
-                  <p className="text-[10px] text-qcloud-muted mt-1">The IBM instance name (hub/group/project format)</p>
-                </div>
-                <div>
-                  <label className="text-sm text-qcloud-muted block mb-1">Channel</label>
-                  <input
-                    type="text"
-                    value={settingsChannel}
-                    onChange={e => setSettingsChannel(e.target.value)}
-                    placeholder="e.g. ibm_cloud or ibm_quantum"
-                    className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
-                  />
-                  <p className="text-[10px] text-qcloud-muted mt-1">ibm_cloud or ibm_quantum</p>
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="text-sm text-qcloud-muted block mb-1">API Key (leave empty to keep current)</label>
+              <div className="flex gap-2 mb-3">
                 <input
                   type="password"
                   value={apiKey}
                   onChange={e => setApiKey(e.target.value)}
-                  placeholder="Paste new IBM API key to replace current one..."
-                  className="w-full px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
+                  onKeyDown={e => e.key === 'Enter' && handleSaveSettings()}
+                  placeholder="Paste new IBM API key..."
+                  className="flex-1 px-3 py-2 border border-qcloud-border rounded-lg text-sm font-mono"
                 />
-              </div>
-              <div className="flex items-center gap-4">
                 <button
                   onClick={handleSaveSettings}
-                  disabled={isSavingApiKey}
+                  disabled={isSavingApiKey || !apiKey.trim()}
                   className="px-4 py-2 bg-qcloud-primary text-white rounded-lg text-sm hover:bg-qcloud-secondary transition-colors disabled:opacity-50"
                 >
-                  {isSavingApiKey ? 'Saving...' : 'Save Settings'}
+                  {isSavingApiKey ? 'Saving...' : 'Update Key'}
                 </button>
-                {apiKeyMsg && (
-                  <span className={`text-sm ${apiKeyMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-                    {apiKeyMsg}
-                  </span>
-                )}
               </div>
+              {apiKeyMsg && (
+                <p className={`text-xs ${apiKeyMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                  {apiKeyMsg}
+                </p>
+              )}
             </div>
           </div>
         )}

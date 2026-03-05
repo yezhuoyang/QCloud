@@ -150,8 +150,6 @@ def _seed_distillation_homework():
             description="Implement an entanglement distillation protocol to improve Bell pair fidelity on real quantum hardware.",
             course="CS 238B",
             ibmq_api_key=ibmq_token,
-            ibmq_channel=settings.ibmq_channel,
-            ibmq_instance=settings.ibmq_instance,
             allowed_backends=ALLOWED_BACKENDS,
             total_budget_seconds=21600,
             num_students=30,

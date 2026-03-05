@@ -114,10 +114,6 @@ function HomeworkPage() {
   const [customApiKey, setCustomApiKey] = useState(() =>
     localStorage.getItem(`hw_custom_apikey_${homeworkId}`) || ''
   )
-  const [customInstance, setCustomInstance] = useState(() =>
-    localStorage.getItem(`hw_custom_instance_${homeworkId}`) || ''
-  )
-
   // Circuit composer state
   const [circuit, setCircuit] = useState<Circuit>(createEmptyCircuit(4))
   const [draggingGate, setDraggingGate] = useState<GateType | null>(null)
@@ -281,7 +277,6 @@ function HomeworkPage() {
         shots,
         eval_method: evalMethod,
         ibmq_api_key: useOwnKey ? customApiKey.trim() : undefined,
-        ibmq_instance: useOwnKey && customInstance.trim() ? customInstance.trim() : undefined,
       })
       refreshQueue()
       refreshSubmissions()
@@ -1018,25 +1013,6 @@ qc.measure_all()
               placeholder="Paste your IBM API key..."
               className="w-full px-2 py-1.5 border border-qcloud-border rounded text-xs font-mono focus:outline-none focus:ring-1 focus:ring-qcloud-primary/50"
             />
-            {customApiKey && (
-              <div className="mt-2">
-                <label className="text-[10px] text-qcloud-muted block mb-1">IBM Instance Name</label>
-                <input
-                  type="text"
-                  value={customInstance}
-                  onChange={(e) => {
-                    setCustomInstance(e.target.value)
-                    if (e.target.value) {
-                      localStorage.setItem(`hw_custom_instance_${homeworkId}`, e.target.value)
-                    } else {
-                      localStorage.removeItem(`hw_custom_instance_${homeworkId}`)
-                    }
-                  }}
-                  placeholder="e.g. ibm-q/open/main"
-                  className="w-full px-2 py-1.5 border border-qcloud-border rounded text-xs font-mono focus:outline-none focus:ring-1 focus:ring-qcloud-primary/50"
-                />
-              </div>
-            )}
             {customApiKey ? (
               <p className="mt-1.5 text-[10px] text-green-600">
                 Your key will be used for hardware submissions. Stored locally only.
