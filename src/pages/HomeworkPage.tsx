@@ -337,13 +337,13 @@ function HomeworkPage() {
         setIsSubmittingFakeHw(false)
         return
       }
-      // Validate INITIAL_LAYOUT length matches qubit count
-      const layoutMatch = codeToRun.match(/INITIAL_LAYOUT\s*=\s*\[([^\]]*)\]/)
+      // Validate INITIAL_LAYOUT length matches qubit count (skip comments)
+      const layoutMatch = codeToRun.match(/^[^#\n]*INITIAL_LAYOUT\s*=\s*\[([^\]]*)\]/m)
       if (layoutMatch) {
-        const layoutNums = layoutMatch[1].split(',').map(s => s.trim()).filter(s => s.length > 0)
+        const layoutNums = layoutMatch[1].split(',').map(s => s.trim()).filter(s => /^\d+$/.test(s))
         const qcMatch = codeToRun.match(/QuantumCircuit\(\s*(\d+)/)
         const numQubits = qcMatch ? parseInt(qcMatch[1]) : (editorMode === 'composer' ? circuit.numQubits : 0)
-        if (numQubits > 0 && layoutNums.length !== numQubits) {
+        if (numQubits > 0 && layoutNums.length > 0 && layoutNums.length !== numQubits) {
           setFakeHwError(`INITIAL_LAYOUT has ${layoutNums.length} entries but circuit has ${numQubits} qubits. They must match.`)
           setIsSubmittingFakeHw(false)
           return
