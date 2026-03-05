@@ -1011,47 +1011,118 @@ qc.measure_all()
           {fakeHwError ? (
             <div className="px-4 pb-3 text-xs text-red-600">{fakeHwError}</div>
           ) : fakeHwResult && fakeHwResult.success ? (
-            <div className="px-4 pb-3">
-              <div className={`grid ${fakeHwResult.success_probability != null ? 'grid-cols-2' : 'grid-cols-1'} gap-4 text-center`}>
-                <div>
-                  <div className="text-[10px] text-qcloud-muted">Your Fidelity</div>
-                  <div className="text-lg font-bold text-orange-600">
-                    {((fakeHwResult.fidelity_after || 0) * 100).toFixed(1)}%
+            <div className="px-4 pb-4 space-y-3">
+              {/* Fidelity Banner */}
+              <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-lg p-3 text-center border border-orange-200">
+                <div className="text-2xl font-bold text-orange-600">
+                  Fidelity: {((fakeHwResult.fidelity_after || 0) * 100).toFixed(1)}%
+                </div>
+                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                  fakeHwResult.eval_method === 'tomography' ? 'bg-purple-100 text-purple-700' :
+                  'bg-teal-100 text-teal-700'
+                }`}>
+                  {fakeHwResult.eval_method === 'inverse_bell' ? 'Inverse Bell' : 'Tomography'}
+                </span>
+              </div>
+
+              {/* Post-Selection Stats */}
+              {fakeHwResult.success_probability != null && (
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="bg-white rounded-lg p-2 border border-orange-200">
+                    <div className="text-[10px] text-qcloud-muted">Success Probability</div>
+                    <div className="text-sm font-bold text-amber-600">
+                      {(fakeHwResult.success_probability * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                  {fakeHwResult.post_selected_shots != null && (
+                    <div className="bg-white rounded-lg p-2 border border-orange-200">
+                      <div className="text-[10px] text-qcloud-muted">Post-Selected Shots</div>
+                      <div className="text-sm font-bold text-qcloud-text">
+                        {fakeHwResult.post_selected_shots} / {shots}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tomography Correlators */}
+              {fakeHwResult.tomography_correlators && (
+                <div className="bg-white rounded-lg p-2 border border-orange-200">
+                  <div className="text-[10px] font-medium text-qcloud-text mb-1">Pauli Correlators</div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {Object.entries(fakeHwResult.tomography_correlators).map(([basis, val]) => (
+                      <div key={basis}>
+                        <div className="text-[10px] text-qcloud-muted">{basis}</div>
+                        <div className={`text-sm font-bold font-mono ${
+                          typeof val === 'number' && val >= 0 ? 'text-green-600' : 'text-red-500'
+                        }`}>
+                          {typeof val === 'number' ? (val >= 0 ? '+' : '') + val.toFixed(3) : val}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-qcloud-muted mt-1 text-center">
+                    {'F(|Φ+⟩) = (1 + ⟨XX⟩ − ⟨YY⟩ + ⟨ZZ⟩) / 4'}
+                  </p>
+                </div>
+              )}
+
+              {/* Submission Details */}
+              <div className="bg-white rounded-lg p-2 border border-orange-200">
+                <div className="text-[10px] font-medium text-qcloud-text mb-1">Submission Details</div>
+                <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+                  <div>
+                    <span className="text-qcloud-muted block">Backend</span>
+                    <span className="font-medium text-orange-700">Fake 4x4</span>
+                  </div>
+                  <div>
+                    <span className="text-qcloud-muted block">Qubits</span>
+                    <span className="font-medium">{fakeHwResult.qubit_count ?? '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-qcloud-muted block">Gates</span>
+                    <span className="font-medium">{fakeHwResult.gate_count ?? '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-qcloud-muted block">Depth</span>
+                    <span className="font-medium">{fakeHwResult.circuit_depth ?? '—'}</span>
                   </div>
                 </div>
-                {fakeHwResult.success_probability != null && (
-                  <div>
-                    <div className="text-[10px] text-qcloud-muted">Success Prob.</div>
-                    <div className="text-lg font-bold text-purple-600">
-                      {(fakeHwResult.success_probability * 100).toFixed(1)}%
-                      {fakeHwResult.post_selected_shots != null && (
-                        <span className="text-[9px] font-normal text-qcloud-muted ml-1">
-                          ({fakeHwResult.post_selected_shots} shots)
-                        </span>
-                      )}
-                    </div>
+                {fakeHwResult.execution_time_ms != null && (
+                  <div className="text-[10px] text-qcloud-muted text-center mt-1">
+                    Execution: {fakeHwResult.execution_time_ms.toFixed(0)}ms
                   </div>
                 )}
               </div>
-              {fakeHwResult.tomography_correlators && (
-                <div className="mt-2 flex gap-3 text-xs">
-                  <span className="text-qcloud-muted font-medium">Correlators:</span>
-                  {Object.entries(fakeHwResult.tomography_correlators).map(([basis, val]) => (
-                    <span key={basis} className="font-mono">
-                      <span className="text-purple-600">{basis}</span>={typeof val === 'number' ? val.toFixed(3) : val}
-                    </span>
-                  ))}
+
+              {/* Measurement Distribution */}
+              {fakeHwResult.measurements && Object.keys(fakeHwResult.measurements).length > 0 && (
+                <div className="bg-white rounded-lg p-2 border border-orange-200">
+                  <div className="text-[10px] font-medium text-qcloud-text mb-2">Measurement Distribution</div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {Object.entries(fakeHwResult.measurements)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([state, count]) => {
+                        const total = Object.values(fakeHwResult.measurements!).reduce((a, b) => a + b, 0)
+                        const pct = (count / total) * 100
+                        return (
+                          <div key={state} className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] w-14 text-right shrink-0">|{state}⟩</span>
+                            <div className="flex-1 bg-gray-100 rounded-full h-3.5 overflow-hidden">
+                              <div
+                                className="bg-orange-500 h-3.5 rounded-full transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-qcloud-muted w-20 text-right shrink-0">
+                              {count} ({pct.toFixed(1)}%)
+                            </span>
+                          </div>
+                        )
+                      })}
+                  </div>
                 </div>
               )}
-              <div className="mt-2 text-[10px] text-qcloud-muted flex gap-4">
-                <span>Qubits: {fakeHwResult.qubit_count}</span>
-                <span>Gates: {fakeHwResult.gate_count}</span>
-                <span>Depth: {fakeHwResult.circuit_depth}</span>
-                <span>Time: {fakeHwResult.execution_time_ms?.toFixed(0)}ms</span>
-                <span className="ml-auto px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                  Fake 4x4 Grid
-                </span>
-              </div>
             </div>
           ) : fakeHwResult && !fakeHwResult.success ? (
             <div className="px-4 pb-3 text-xs text-red-600">{fakeHwResult.error}</div>

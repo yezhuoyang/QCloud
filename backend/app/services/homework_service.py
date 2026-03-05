@@ -672,8 +672,15 @@ def simulate_fake_hardware(
 
 def _run_fake_hw_simulation(circuit, simulator, shots, transpile_kwargs):
     """Transpile to fake hardware topology and run noisy simulation."""
+    import logging
+    logger = logging.getLogger(__name__)
     from qiskit import transpile
     transpiled = transpile(circuit, **transpile_kwargs)
+    logger.info(
+        f"[FakeHW] initial_layout={transpile_kwargs.get('initial_layout')}, "
+        f"original_depth={circuit.depth()}, transpiled_depth={transpiled.depth()}, "
+        f"transpiled_gates={len(transpiled.data)}, transpiled_qubits={transpiled.num_qubits}"
+    )
     job = simulator.run(transpiled, shots=shots)
     return job.result().get_counts()
 
