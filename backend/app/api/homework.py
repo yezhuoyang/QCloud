@@ -1234,6 +1234,7 @@ async def get_fake_hardware_leaderboard(
         rank += 1
         entries.append(FakeHardwareLeaderboardEntry(
             rank=rank,
+            submission_id=sub.id,
             student_label=token.student_uid[:6] if token.student_uid else "???",
             display_name=token.display_name,
             method_name=token.method_name,
@@ -1256,3 +1257,22 @@ async def get_fake_hardware_leaderboard(
         total_students=total_students,
         updated_at=datetime.utcnow().isoformat(),
     )
+
+
+@router.delete("/admin/fake-hardware-submissions/{submission_id}")
+async def admin_delete_fake_hardware_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Delete a fake hardware submission (admin only)."""
+    submission = db.query(FakeHardwareSubmission).filter(
+        FakeHardwareSubmission.id == submission_id
+    ).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Fake hardware submission not found")
+
+    db.delete(submission)
+    db.commit()
+
+    return {"message": "Fake hardware submission deleted", "id": submission_id}

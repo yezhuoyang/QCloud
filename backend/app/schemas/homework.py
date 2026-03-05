@@ -447,6 +447,7 @@ class FakeHardwareSubmitResponse(BaseModel):
 class FakeHardwareLeaderboardEntry(BaseModel):
     """Single entry on the fake hardware leaderboard"""
     rank: int
+    submission_id: str
     student_label: str
     display_name: Optional[str] = None
     method_name: Optional[str] = None

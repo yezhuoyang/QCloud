@@ -121,6 +121,19 @@ export const HARDWARE_PROVIDERS: HardwareProvider[] = [
     docsUrl: 'https://quantum.ibm.com/services/resources?system=ibm_miami',
     pricing: 'Free tier available'
   },
+  // Noisy Simulator - all-to-all connectivity
+  {
+    id: 'noisy_simulator',
+    name: 'Noisy Simulator',
+    company: 'QCloud',
+    type: 'simulator',
+    qubits: 30,
+    status: 'online',
+    description: 'Noisy simulator with all-to-all qubit connectivity and configurable depolarizing noise. No layout or transpilation constraints.',
+    features: ['All-to-all', 'Configurable noise', 'No transpilation', 'Instant results'],
+    backendName: 'noisy_simulator',
+    apiRequired: false,
+  },
   // Fake Hardware - 4x4 Grid Simulator
   {
     id: 'fake_4x4',

@@ -6,9 +6,11 @@ import {
   type HomeworkTokenGenResult,
   type AdminSubmission,
   type AdminSubmissionList,
+  type HomeworkLeaderboardEntryType,
+  type FakeHardwareLeaderboardEntry,
 } from '../utils/api'
 
-type AdminTab = 'submissions' | 'students' | 'submit' | 'settings'
+type AdminTab = 'submissions' | 'students' | 'submit' | 'settings' | 'leaderboard'
 
 const KNOWN_BACKENDS = [
   { name: 'ibm_torino', qubits: 133 },
@@ -67,6 +69,13 @@ POST_SELECT = {"00"}
   const [generatedTokens, setGeneratedTokens] = useState<HomeworkTokenGenResult | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // Leaderboard
+  const [hwLeaderboard, setHwLeaderboard] = useState<HomeworkLeaderboardEntryType[]>([])
+  const [fakeLeaderboard, setFakeLeaderboard] = useState<FakeHardwareLeaderboardEntry[]>([])
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false)
+  const [deletingLbId, setDeletingLbId] = useState<string | null>(null)
+  const [deletingFakeLbId, setDeletingFakeLbId] = useState<string | null>(null)
+
   // Settings (API key)
   const [apiKey, setApiKey] = useState('')
   const [isSavingApiKey, setIsSavingApiKey] = useState(false)
@@ -103,10 +112,27 @@ POST_SELECT = {"00"}
     }
   }, [homeworkId])
 
+  const fetchLeaderboards = useCallback(async () => {
+    setIsLoadingLeaderboard(true)
+    try {
+      const [hw, fake] = await Promise.all([
+        homeworkApi.getLeaderboard(homeworkId),
+        homeworkApi.getFakeLeaderboard(homeworkId),
+      ])
+      setHwLeaderboard(hw.leaderboard)
+      setFakeLeaderboard(fake.entries)
+    } catch (err) {
+      console.error('Failed to load leaderboards:', err)
+    } finally {
+      setIsLoadingLeaderboard(false)
+    }
+  }, [homeworkId])
+
   useEffect(() => {
     if (activeTab === 'submissions') fetchSubmissions(1, statusFilter || undefined)
     else if (activeTab === 'students') fetchBudgets()
-  }, [activeTab, fetchSubmissions, fetchBudgets, statusFilter])
+    else if (activeTab === 'leaderboard') fetchLeaderboards()
+  }, [activeTab, fetchSubmissions, fetchBudgets, fetchLeaderboards, statusFilter])
 
   // -- Handlers --
 
@@ -134,6 +160,26 @@ POST_SELECT = {"00"}
       await homeworkApi.deleteSubmission(id)
       setDeletingId(null)
       fetchSubmissions(submissionsPage, statusFilter || undefined)
+    } catch (err: any) {
+      alert(err.detail || 'Failed to delete submission')
+    }
+  }
+
+  const handleDeleteHwLeaderboard = async (submissionId: string) => {
+    try {
+      await homeworkApi.deleteSubmission(submissionId)
+      setDeletingLbId(null)
+      fetchLeaderboards()
+    } catch (err: any) {
+      alert(err.detail || 'Failed to delete submission')
+    }
+  }
+
+  const handleDeleteFakeLeaderboard = async (submissionId: string) => {
+    try {
+      await homeworkApi.deleteFakeHardwareSubmission(submissionId)
+      setDeletingFakeLbId(null)
+      fetchLeaderboards()
     } catch (err: any) {
       alert(err.detail || 'Failed to delete submission')
     }
@@ -250,6 +296,7 @@ POST_SELECT = {"00"}
           {([
             ['submissions', 'Submissions'],
             ['students', 'Students'],
+            ['leaderboard', 'Leaderboard'],
             ['submit', 'Submit Job'],
             ['settings', 'Settings'],
           ] as [AdminTab, string][]).map(([tab, label]) => (
@@ -680,6 +727,159 @@ POST_SELECT = {"00"}
                 <p className="text-sm text-qcloud-muted">No data available.</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Leaderboard Tab */}
+        {activeTab === 'leaderboard' && (
+          <div className="space-y-6">
+            {isLoadingLeaderboard ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-4 border-qcloud-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Hardware Leaderboard */}
+                <div className="bg-white rounded-xl border border-qcloud-border overflow-hidden">
+                  <div className="px-4 py-3 border-b border-qcloud-border flex items-center justify-between">
+                    <h3 className="font-semibold text-sm text-qcloud-text">Hardware Leaderboard</h3>
+                    <span className="text-xs text-qcloud-muted">{hwLeaderboard.length} entries</span>
+                  </div>
+                  {hwLeaderboard.length === 0 ? (
+                    <div className="text-center py-8 text-qcloud-muted text-sm">No hardware leaderboard entries.</div>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-qcloud-border text-left text-xs text-qcloud-muted">
+                          <th className="px-3 py-2 w-10">#</th>
+                          <th className="px-3 py-2">Student</th>
+                          <th className="px-3 py-2">Method</th>
+                          <th className="px-3 py-2 text-right">Before</th>
+                          <th className="px-3 py-2 text-right">After</th>
+                          <th className="px-3 py-2">Backend</th>
+                          <th className="px-3 py-2">Eval</th>
+                          <th className="px-3 py-2 text-right">Date</th>
+                          <th className="px-3 py-2 w-20">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hwLeaderboard.map(entry => (
+                          <tr key={entry.submission_id} className="border-b border-qcloud-border hover:bg-qcloud-bg/30 text-sm">
+                            <td className="px-3 py-2 text-xs font-bold text-qcloud-muted">{entry.rank}</td>
+                            <td className="px-3 py-2">
+                              <span className="font-medium text-xs">{entry.display_name || entry.student_label}</span>
+                              {entry.display_name && <span className="text-[10px] text-qcloud-muted ml-1 font-mono">{entry.student_label}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-qcloud-muted">{entry.method_name || '—'}</td>
+                            <td className="px-3 py-2 text-right text-xs">{(entry.fidelity_before * 100).toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="font-semibold text-xs text-qcloud-primary">{(entry.fidelity_after * 100).toFixed(1)}%</span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">{entry.backend_name || '—'}</span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                entry.eval_method === 'inverse_bell' ? 'bg-teal-50 text-teal-700'
+                                  : entry.eval_method === 'tomography' ? 'bg-purple-50 text-purple-700'
+                                  : 'bg-gray-50 text-gray-500'
+                              }`}>
+                                {entry.eval_method === 'inverse_bell' ? 'InvBell' : entry.eval_method === 'tomography' ? 'Tomo' : entry.eval_method}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right text-xs text-qcloud-muted">{formatTime(entry.submitted_at)}</td>
+                            <td className="px-3 py-2">
+                              {deletingLbId === entry.submission_id ? (
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleDeleteHwLeaderboard(entry.submission_id)}
+                                    className="text-[10px] px-2 py-0.5 bg-red-500 text-white rounded">Yes</button>
+                                  <button onClick={() => setDeletingLbId(null)}
+                                    className="text-[10px] px-2 py-0.5 bg-gray-200 rounded">No</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setDeletingLbId(entry.submission_id)}
+                                  className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Fake Hardware Leaderboard */}
+                <div className="bg-white rounded-xl border border-qcloud-border overflow-hidden">
+                  <div className="px-4 py-3 border-b border-qcloud-border flex items-center justify-between">
+                    <h3 className="font-semibold text-sm text-qcloud-text">Fake Hardware Leaderboard</h3>
+                    <span className="text-xs text-qcloud-muted">{fakeLeaderboard.length} entries</span>
+                  </div>
+                  {fakeLeaderboard.length === 0 ? (
+                    <div className="text-center py-8 text-qcloud-muted text-sm">No fake hardware leaderboard entries.</div>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-qcloud-border text-left text-xs text-qcloud-muted">
+                          <th className="px-3 py-2 w-10">#</th>
+                          <th className="px-3 py-2">Student</th>
+                          <th className="px-3 py-2">Method</th>
+                          <th className="px-3 py-2 text-right">Fidelity</th>
+                          <th className="px-3 py-2 text-right">Succ. Prob</th>
+                          <th className="px-3 py-2 text-right">Circuit</th>
+                          <th className="px-3 py-2">Eval</th>
+                          <th className="px-3 py-2 text-right">Date</th>
+                          <th className="px-3 py-2 w-20">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fakeLeaderboard.map(entry => (
+                          <tr key={entry.submission_id} className="border-b border-qcloud-border hover:bg-qcloud-bg/30 text-sm">
+                            <td className="px-3 py-2 text-xs font-bold text-qcloud-muted">{entry.rank}</td>
+                            <td className="px-3 py-2">
+                              <span className="font-medium text-xs">{entry.display_name || entry.student_label}</span>
+                              {entry.display_name && <span className="text-[10px] text-qcloud-muted ml-1 font-mono">{entry.student_label}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-qcloud-muted">{entry.method_name || '—'}</td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="font-semibold text-xs text-qcloud-primary">{(entry.fidelity_after * 100).toFixed(1)}%</span>
+                            </td>
+                            <td className="px-3 py-2 text-right text-xs text-amber-600">
+                              {entry.success_probability != null ? `${(entry.success_probability * 100).toFixed(1)}%` : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right text-xs text-qcloud-muted">
+                              {entry.qubit_count ?? '?'}q, {entry.gate_count ?? '?'}g, d{entry.circuit_depth ?? '?'}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                entry.eval_method === 'inverse_bell' ? 'bg-teal-50 text-teal-700'
+                                  : entry.eval_method === 'tomography' ? 'bg-purple-50 text-purple-700'
+                                  : 'bg-gray-50 text-gray-500'
+                              }`}>
+                                {entry.eval_method === 'inverse_bell' ? 'InvBell' : entry.eval_method === 'tomography' ? 'Tomo' : entry.eval_method}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right text-xs text-qcloud-muted">{formatTime(entry.created_at)}</td>
+                            <td className="px-3 py-2">
+                              {deletingFakeLbId === entry.submission_id ? (
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleDeleteFakeLeaderboard(entry.submission_id)}
+                                    className="text-[10px] px-2 py-0.5 bg-red-500 text-white rounded">Yes</button>
+                                  <button onClick={() => setDeletingFakeLbId(null)}
+                                    className="text-[10px] px-2 py-0.5 bg-gray-200 rounded">No</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setDeletingFakeLbId(entry.submission_id)}
+                                  className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

@@ -1220,6 +1220,7 @@ export interface FakeHardwareSubmitResult {
 
 export interface FakeHardwareLeaderboardEntry {
   rank: number;
+  submission_id: string;
   student_label: string;
   display_name?: string;
   method_name?: string;
@@ -1504,6 +1505,15 @@ export const homeworkApi = {
   deleteSubmission: (submissionId: string) =>
     apiRequest<{ message: string; id: string }>(
       `/homework/admin/submissions/${submissionId}`,
+      { method: 'DELETE', requireAuth: true }
+    ),
+
+  /**
+   * Delete a fake hardware submission (admin)
+   */
+  deleteFakeHardwareSubmission: (submissionId: string) =>
+    apiRequest<{ message: string; id: string }>(
+      `/homework/admin/fake-hardware-submissions/${submissionId}`,
       { method: 'DELETE', requireAuth: true }
     ),
 
