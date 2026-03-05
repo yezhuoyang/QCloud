@@ -44,6 +44,7 @@ function CodeEditor({ value, onChange }: CodeEditorProps) {
       options={{
         fontSize: 14,
         fontFamily: "'Fira Code', 'Consolas', monospace",
+        fontLigatures: false,
         minimap: { enabled: true },
         scrollBeyondLastLine: false,
         automaticLayout: true,
