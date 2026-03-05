@@ -540,6 +540,7 @@ async def check_transpile(
         "ibm_fez": 156, "ibm_kingston": 156,
         "ibm_marrakesh": 156, "ibm_boston": 156,
         "ibm_pittsburgh": 156, "ibm_miami": 120,
+        "fake_4x4": 16,
     }
     if request.backend_name not in backend_qubit_counts:
         raise HTTPException(status_code=400, detail=f"Unknown backend {request.backend_name}")
@@ -558,12 +559,24 @@ async def check_transpile(
         circuit.measure_all()
 
     try:
-        from qiskit.transpiler import generate_preset_pass_manager
+        from qiskit.transpiler import generate_preset_pass_manager, CouplingMap
         from qiskit.providers.fake_provider import GenericBackendV2
 
-        # Use GenericBackendV2 for local transpilation preview
         num_qubits = backend_qubit_counts.get(request.backend_name, 156)
-        fake_backend = GenericBackendV2(num_qubits=num_qubits)
+
+        if request.backend_name == "fake_4x4":
+            # Build 4x4 grid coupling map matching the actual fake hardware
+            grid_edges = []
+            for row in range(4):
+                for col in range(4):
+                    q = row * 4 + col
+                    if col < 3:
+                        grid_edges.append((q, q + 1))
+                    if row < 3:
+                        grid_edges.append((q, q + 4))
+            fake_backend = GenericBackendV2(num_qubits=16, coupling_map=CouplingMap(grid_edges))
+        else:
+            fake_backend = GenericBackendV2(num_qubits=num_qubits)
 
         pm_kwargs = {"backend": fake_backend, "optimization_level": 3}
         if initial_layout:
