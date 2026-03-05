@@ -216,7 +216,32 @@ async def submit_homework(
             detail="Invalid eval_method. Use 'inverse_bell' or 'tomography'.",
         )
 
-    # Enqueue the submission (reference circuit comes from homework config)
+    # If student provides their own API key, bypass the queue and submit directly
+    if request.ibmq_api_key:
+        submission = homework_queue.enqueue(
+            db=db,
+            homework=homework,
+            token_record=token_record,
+            code=request.code,
+            backend_name=request.backend,
+            shots=request.shots,
+            eval_method=eval_method,
+            custom_api_key=request.ibmq_api_key,
+        )
+        # Submit directly to IBM (bypasses concurrency limit)
+        success = homework_queue._submit_to_ibm(db, homework, submission)
+        if success:
+            submission.status = "running"
+            submission.queue_position = None
+            submission.started_at = datetime.utcnow()
+            db.commit()
+            background_tasks.add_task(_poll_submission_status, submission.id)
+        else:
+            db.commit()
+        db.refresh(submission)
+        return _format_submission(submission)
+
+    # No custom key — use shared queue with concurrency limit
     submission = homework_queue.enqueue(
         db=db,
         homework=homework,
@@ -225,7 +250,6 @@ async def submit_homework(
         backend_name=request.backend,
         shots=request.shots,
         eval_method=eval_method,
-        custom_api_key=request.ibmq_api_key,
     )
 
     # Try to process the queue (may start this job immediately if slots available)
