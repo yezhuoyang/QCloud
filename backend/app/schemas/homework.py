@@ -83,6 +83,7 @@ class HomeworkSubmissionResponse(BaseModel):
     post_selected_shots: Optional[int] = None
     eval_method: str = "inverse_bell"
     tomography_correlators: Optional[Dict[str, float]] = None
+    code: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime
     started_at: Optional[datetime] = None
@@ -95,6 +96,36 @@ class HomeworkSubmissionResponse(BaseModel):
 class HomeworkSubmissionListResponse(BaseModel):
     """Response for list of homework submissions"""
     submissions: List[HomeworkSubmissionResponse]
+    total: int
+
+
+class FakeHardwareSubmissionDetail(BaseModel):
+    """Detailed fake hardware submission for student history"""
+    id: str
+    homework_id: str
+    code: str
+    shots: int
+    eval_method: str = "inverse_bell"
+    initial_layout: Optional[List[int]] = None
+    measurements: Optional[Dict[str, int]] = None
+    fidelity_after: Optional[float] = None
+    success_probability: Optional[float] = None
+    post_selected_shots: Optional[int] = None
+    tomography_correlators: Optional[Dict[str, float]] = None
+    qubit_count: Optional[int] = None
+    gate_count: Optional[int] = None
+    circuit_depth: Optional[int] = None
+    status: str = "completed"
+    error_message: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FakeHardwareSubmissionListResponse(BaseModel):
+    """Response for list of fake hardware submissions"""
+    submissions: List[FakeHardwareSubmissionDetail]
     total: int
 
 

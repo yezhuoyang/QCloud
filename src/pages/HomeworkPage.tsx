@@ -194,6 +194,13 @@ function HomeworkPage() {
       handleVerifyToken(savedToken)
     }
 
+    // Check for code loaded from job history
+    const loadedCode = localStorage.getItem(`hw_load_code_${homeworkId}`)
+    if (loadedCode) {
+      setCode(loadedCode)
+      localStorage.removeItem(`hw_load_code_${homeworkId}`)
+    }
+
     // Fetch queue status (public)
     refreshQueue()
   }, [homeworkId])
@@ -713,6 +720,14 @@ qc.measure_all()
               >
                 Hardware Ranking
               </Link>
+              {isTokenVerified && (
+                <Link
+                  to={`/homework/${homeworkId}/job-history?token=${encodeURIComponent(token)}`}
+                  className="px-3 py-1 text-xs bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors"
+                >
+                  Job History
+                </Link>
+              )}
             </>
           )}
           {isAdmin && (

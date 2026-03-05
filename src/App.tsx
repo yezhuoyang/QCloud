@@ -27,6 +27,7 @@ import HomeworkMethodsPage from './pages/HomeworkMethodsPage'
 import AdminHomeworkPage from './pages/AdminHomeworkPage'
 import HardwareRankingPage from './pages/HardwareRankingPage'
 import HomeworkQueuePage from './pages/HomeworkQueuePage'
+import HomeworkJobHistoryPage from './pages/HomeworkJobHistoryPage'
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
         <Route path="/homework/:homeworkId/hardware-ranking" element={<HardwareRankingPage />} />
         <Route path="/homework/:homeworkId/methods" element={<HomeworkMethodsPage />} />
         <Route path="/homework/:homeworkId/queue" element={<HomeworkQueuePage />} />
+        <Route path="/homework/:homeworkId/job-history" element={<HomeworkJobHistoryPage />} />
         <Route path="/admin/homework" element={<AdminHomeworkPage />} />
         <Route path="/admin/homework/:homeworkId" element={<AdminHomeworkPage />} />
       </Routes>

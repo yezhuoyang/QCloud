@@ -71,6 +71,8 @@ from ..schemas.homework import (
     FakeHardwareSubmitResponse,
     FakeHardwareLeaderboardEntry,
     FakeHardwareLeaderboardResponse,
+    FakeHardwareSubmissionDetail,
+    FakeHardwareSubmissionListResponse,
 )
 
 router = APIRouter(prefix="/homework", tags=["Homework"])
@@ -1117,6 +1119,7 @@ def _format_submission(sub: HomeworkSubmission) -> HomeworkSubmissionResponse:
         post_selected_shots=sub.post_selected_shots,
         eval_method=sub.eval_method or "legacy",
         tomography_correlators=json.loads(sub.tomography_correlators) if sub.tomography_correlators else None,
+        code=sub.code_after,
         error_message=sub.error_message,
         created_at=sub.created_at,
         started_at=sub.started_at,
@@ -1212,6 +1215,48 @@ async def submit_to_fake_hardware(
         eval_method=eval_method,
         tomography_correlators=result.get("tomography_correlators"),
     )
+
+
+@router.get("/fake-hardware/submissions", response_model=FakeHardwareSubmissionListResponse)
+async def get_fake_hardware_submissions(
+    token: str = Query(..., description="Student's homework token"),
+    db: Session = Depends(get_db),
+):
+    """Get all fake hardware submissions for a student (by token)."""
+    token_record = verify_homework_token(db, token)
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    subs = (
+        db.query(FakeHardwareSubmission)
+        .filter(FakeHardwareSubmission.token_id == token_record.id)
+        .order_by(FakeHardwareSubmission.created_at.desc())
+        .all()
+    )
+
+    submissions = []
+    for s in subs:
+        submissions.append(FakeHardwareSubmissionDetail(
+            id=s.id,
+            homework_id=s.homework_id,
+            code=s.code,
+            shots=s.shots,
+            eval_method=s.eval_method or "inverse_bell",
+            initial_layout=json.loads(s.initial_layout) if s.initial_layout else None,
+            measurements=json.loads(s.measurements) if s.measurements else None,
+            fidelity_after=s.fidelity_after,
+            success_probability=s.success_probability,
+            post_selected_shots=s.post_selected_shots,
+            tomography_correlators=json.loads(s.tomography_correlators) if s.tomography_correlators else None,
+            qubit_count=s.qubit_count,
+            gate_count=s.gate_count,
+            circuit_depth=s.circuit_depth,
+            status=s.status or "completed",
+            error_message=s.error_message,
+            created_at=s.created_at,
+        ))
+
+    return FakeHardwareSubmissionListResponse(submissions=submissions, total=len(submissions))
 
 
 @router.get("/fake-hardware/leaderboard/{homework_id}", response_model=FakeHardwareLeaderboardResponse)

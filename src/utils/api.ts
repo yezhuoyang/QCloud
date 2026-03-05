@@ -1019,10 +1019,36 @@ export interface HomeworkSubmissionResult {
   post_selected_shots?: number | null;
   eval_method?: string;
   tomography_correlators?: Record<string, number> | null;
+  code?: string | null;
   error_message?: string | null;
   created_at: string;
   started_at?: string | null;
   completed_at?: string | null;
+}
+
+export interface FakeHardwareSubmissionDetail {
+  id: string;
+  homework_id: string;
+  code: string;
+  shots: number;
+  eval_method: string;
+  initial_layout?: number[] | null;
+  measurements?: Record<string, number> | null;
+  fidelity_after?: number | null;
+  success_probability?: number | null;
+  post_selected_shots?: number | null;
+  tomography_correlators?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  status: string;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface FakeHardwareSubmissionList {
+  submissions: FakeHardwareSubmissionDetail[];
+  total: number;
 }
 
 export interface HomeworkSubmissionList {
@@ -1396,6 +1422,14 @@ export const homeworkApi = {
    */
   getFakeLeaderboard: (homeworkId: string) =>
     apiRequest<FakeHardwareLeaderboard>(`/homework/fake-hardware/leaderboard/${homeworkId}`),
+
+  /**
+   * Get student's fake hardware submission history
+   */
+  getFakeHardwareSubmissions: (token: string) =>
+    apiRequest<FakeHardwareSubmissionList>(
+      `/homework/fake-hardware/submissions?token=${encodeURIComponent(token)}`
+    ),
 
   // ---- Admin endpoints ----
 
