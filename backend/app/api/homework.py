@@ -181,13 +181,14 @@ async def submit_homework(
 
     homework = token_record.homework
 
-    # Check budget
-    has_budget, remaining = check_budget(token_record)
-    if not has_budget:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Insufficient budget. Remaining: {remaining:.0f}s",
-        )
+    # Check budget (skip if student provides their own API key)
+    if not request.ibmq_api_key:
+        has_budget, remaining = check_budget(token_record)
+        if not has_budget:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Insufficient budget. Remaining: {remaining:.0f}s",
+            )
 
     # Validate backend exists in our known backends
     known_backends = [

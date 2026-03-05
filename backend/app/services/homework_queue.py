@@ -346,17 +346,37 @@ class HomeworkQueueManager:
             submission.status = "completed"
             submission.completed_at = datetime.utcnow()
 
-            # Estimate execution time from timestamps
-            if submission.started_at:
+            # Get actual execution time from IBM job metrics
+            execution_time = None
+            try:
+                metrics = ibm_job.metrics()
+                # IBM reports usage in seconds via 'usage' or 'quantum_seconds'
+                if metrics:
+                    usage = metrics.get("usage", {})
+                    if isinstance(usage, dict):
+                        execution_time = usage.get("quantum_seconds") or usage.get("seconds")
+                    elif isinstance(usage, (int, float)):
+                        execution_time = float(usage)
+                    # Fallback: try billed_seconds or estimated_run_time
+                    if not execution_time:
+                        execution_time = metrics.get("billed_seconds") or metrics.get("estimated_run_time_seconds")
+            except Exception as e:
+                print(f"[HomeworkQueue] Could not get IBM metrics: {e}")
+
+            # Fallback to wall-clock time if IBM metrics unavailable
+            if not execution_time and submission.started_at:
                 execution_time = (
                     datetime.utcnow() - submission.started_at
                 ).total_seconds()
+
+            if execution_time:
                 submission.execution_time_seconds = execution_time
 
-                # Deduct budget from student's token
-                token_record = submission.token
-                if token_record:
-                    deduct_budget(db, token_record, execution_time)
+                # Only deduct budget if student used the platform's API key (not their own)
+                if not submission.custom_api_key_encrypted:
+                    token_record = submission.token
+                    if token_record:
+                        deduct_budget(db, token_record, execution_time)
 
             print(
                 f"[HomeworkQueue] Submission {submission.id} completed ({eval_method}): "
