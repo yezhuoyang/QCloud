@@ -71,16 +71,13 @@ qc.cx(0, 1)
 qc.h(2)
 qc.cx(2, 3)
 
-# BBPSSW bilateral CNOT
-qc.cx(0, 2)
-qc.cx(1, 3)
+# TODO: Implement bilateral CNOT between pair 1 and pair 2
 
 # Measure ALL qubits (q0->c0, q1->c1, q2->c2, q3->c3)
 qc.measure([0, 1, 2, 3], [0, 1, 2, 3])
 
-# Post-selection (Qiskit bit order: c3 c2, highest bit first)
-# "00" means c3=0, c2=0 (both ancillas measured 0)
-POST_SELECT = {"00"}
+# TODO: Define POST_SELECT to filter ancilla measurements
+# POST_SELECT = {"00"}
 `
 
 type EditorMode = 'code' | 'composer'
