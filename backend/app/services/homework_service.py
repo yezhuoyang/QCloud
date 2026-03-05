@@ -695,10 +695,35 @@ def _run_fake_hw_simulation(circuit, simulator, shots, transpile_kwargs):
     import logging
     logger = logging.getLogger(__name__)
     from qiskit import transpile
-    transpiled = transpile(circuit, **transpile_kwargs)
+
+    # Adjust initial_layout to match the (possibly rebuilt) circuit's qubit count
+    kwargs = dict(transpile_kwargs)
+    layout = kwargs.get("initial_layout")
+    if layout and len(layout) != circuit.num_qubits:
+        # Layout was for original student circuit but the eval circuit may
+        # have a different qubit count after _strip_classical_bits rebuild.
+        # Truncate or skip layout if it doesn't match.
+        if len(layout) > circuit.num_qubits:
+            kwargs["initial_layout"] = layout[:circuit.num_qubits]
+        else:
+            # Layout has fewer entries than circuit qubits — can't map, skip it
+            logger.warning(
+                f"[FakeHW] Skipping initial_layout: layout len={len(layout)} != circuit qubits={circuit.num_qubits}"
+            )
+            kwargs.pop("initial_layout", None)
+
     logger.info(
-        f"[FakeHW] initial_layout={transpile_kwargs.get('initial_layout')}, "
-        f"original_depth={circuit.depth()}, transpiled_depth={transpiled.depth()}, "
+        f"[FakeHW] PRE-TRANSPILE: initial_layout={kwargs.get('initial_layout')}, "
+        f"circuit_qubits={circuit.num_qubits}, circuit_depth={circuit.depth()}"
+    )
+    try:
+        transpiled = transpile(circuit, **kwargs)
+    except Exception as e:
+        logger.error(f"[FakeHW] Transpile failed: {e}, falling back without initial_layout")
+        kwargs.pop("initial_layout", None)
+        transpiled = transpile(circuit, **kwargs)
+    logger.info(
+        f"[FakeHW] POST-TRANSPILE: transpiled_depth={transpiled.depth()}, "
         f"transpiled_gates={len(transpiled.data)}, transpiled_qubits={transpiled.num_qubits}"
     )
     job = simulator.run(transpiled, shots=shots)

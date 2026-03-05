@@ -1112,11 +1112,19 @@ async def submit_to_fake_hardware(
         raise HTTPException(status_code=400, detail="eval_method must be 'inverse_bell' or 'tomography'")
 
     # Run on fake hardware
-    result = simulate_fake_hardware(
-        student_circuit_code=request.code,
-        shots=request.shots,
-        eval_method=eval_method,
-    )
+    try:
+        result = simulate_fake_hardware(
+            student_circuit_code=request.code,
+            shots=request.shots,
+            eval_method=eval_method,
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return FakeHardwareSubmitResponse(
+            success=False,
+            error=f"Simulation error: {str(e)}",
+        )
 
     if not result.get("success"):
         return FakeHardwareSubmitResponse(
