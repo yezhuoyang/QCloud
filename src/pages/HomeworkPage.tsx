@@ -880,29 +880,29 @@ qc.measure_all()
               className="w-14 px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-[10px] text-slate-200 text-center"
             />
           </div>
-          {/* Simulator button - only for noisy_simulator backend, requires token */}
+          {/* Simulator button - only for noisy_simulator backend, requires token (admins bypass token) */}
           <button
             onClick={() => handleSimulate('distillation')}
-            disabled={isSimulating || selectedBackend !== 'noisy_simulator' || !isTokenVerified}
-            title={!isTokenVerified ? 'Enter your token first' : selectedBackend !== 'noisy_simulator' ? 'Select Noisy Simulator backend' : undefined}
+            disabled={isSimulating || selectedBackend !== 'noisy_simulator' || (!isTokenVerified && !isAdmin)}
+            title={!isTokenVerified && !isAdmin ? 'Enter your token first' : selectedBackend !== 'noisy_simulator' ? 'Select Noisy Simulator backend' : undefined}
             className="px-4 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-500 transition-colors disabled:opacity-50"
           >
             {isSimulating && simulateMode === 'distillation' ? 'Simulating...' : 'Run Simulator'}
           </button>
-          {/* Hardware submit - only for real IBM backends, requires token + budget */}
+          {/* Hardware submit - only for real IBM backends, requires token + budget (admins bypass token) */}
           <button
             onClick={openSubmitModal}
-            disabled={isSubmitting || !canSubmitHardware || selectedBackend === 'noisy_simulator' || selectedBackend === 'fake_4x4'}
-            title={!isTokenVerified ? 'Enter your token first' : selectedBackend === 'noisy_simulator' || selectedBackend === 'fake_4x4' ? 'Select a real hardware backend' : !canSubmitHardware ? 'Insufficient budget' : undefined}
+            disabled={isSubmitting || selectedBackend === 'noisy_simulator' || selectedBackend === 'fake_4x4' || (!canSubmitHardware && !isAdmin)}
+            title={!isTokenVerified && !isAdmin ? 'Enter your token first' : selectedBackend === 'noisy_simulator' || selectedBackend === 'fake_4x4' ? 'Select a real hardware backend' : !canSubmitHardware && !isAdmin ? 'Insufficient budget' : undefined}
             className="px-4 py-1 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-500 transition-colors disabled:opacity-50"
           >
             {isSubmitting ? 'Submitting...' : 'Submit to Hardware'}
           </button>
-          {/* Fake hardware submit - only for fake_4x4 backend, requires token */}
+          {/* Fake hardware submit - only for fake_4x4 backend, requires token (admins bypass token) */}
           <button
             onClick={handleSubmitFakeHardware}
-            disabled={isSubmittingFakeHw || !isTokenVerified || selectedBackend !== 'fake_4x4'}
-            title={!isTokenVerified ? 'Enter your token first' : selectedBackend !== 'fake_4x4' ? 'Select Fake 4x4 Grid backend' : undefined}
+            disabled={isSubmittingFakeHw || selectedBackend !== 'fake_4x4' || (!isTokenVerified && !isAdmin)}
+            title={!isTokenVerified && !isAdmin ? 'Enter your token first' : selectedBackend !== 'fake_4x4' ? 'Select Fake 4x4 Grid backend' : undefined}
             className="px-4 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
           >
             {isSubmittingFakeHw ? 'Submitting...' : 'Submit to FakeHardware'}
