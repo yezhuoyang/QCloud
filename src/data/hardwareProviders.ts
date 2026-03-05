@@ -121,6 +121,19 @@ export const HARDWARE_PROVIDERS: HardwareProvider[] = [
     docsUrl: 'https://quantum.ibm.com/services/resources?system=ibm_miami',
     pricing: 'Free tier available'
   },
+  // Fake Hardware - 4x4 Grid Simulator
+  {
+    id: 'fake_4x4',
+    name: 'Fake 4x4 Grid',
+    company: 'QCloud',
+    type: 'simulator',
+    qubits: 16,
+    status: 'online',
+    description: 'Simulated 16-qubit device with 4x4 grid topology and depolarizing noise (1Q: 1%, 2Q: 2%). Circuits are transpiled to the grid connectivity.',
+    features: ['4x4 Grid', '16 qubits', 'Noisy simulation', 'Transpilation'],
+    backendName: 'fake_4x4',
+    apiRequired: false,
+  },
 ]
 
 export function findProviderByBackend(backendName: string): HardwareProvider | undefined {
