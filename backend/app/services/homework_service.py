@@ -550,6 +550,134 @@ def simulate_homework_noisy(
     }
 
 
+def simulate_fake_hardware(
+    student_circuit_code: str,
+    shots: int = 1024,
+    eval_method: str = "inverse_bell",
+    single_qubit_error: float = 0.01,
+    two_qubit_error: float = 0.02,
+) -> dict:
+    """
+    Run student circuit on a fake 4x4 grid hardware (16 qubits) with noisy simulation.
+    The circuit is transpiled to the grid topology before simulation.
+    Students can specify INITIAL_LAYOUT in their code for qubit placement.
+    """
+    import time
+    from .code_validator import execute_circuit_code
+
+    try:
+        from qiskit_aer import AerSimulator
+    except ImportError:
+        from qiskit.providers.aer import AerSimulator
+
+    from qiskit_aer.noise import NoiseModel, depolarizing_error
+    from qiskit import transpile
+    from qiskit.transpiler import CouplingMap
+
+    start_time = time.time()
+
+    # Build 4x4 grid coupling map (16 qubits)
+    grid_edges = []
+    for row in range(4):
+        for col in range(4):
+            qubit = row * 4 + col
+            if col < 3:  # horizontal neighbor
+                grid_edges.append((qubit, qubit + 1))
+            if row < 3:  # vertical neighbor
+                grid_edges.append((qubit, qubit + 4))
+    coupling_map = CouplingMap(grid_edges)
+
+    # Build depolarization noise model
+    noise_model = NoiseModel()
+    error_1q = depolarizing_error(single_qubit_error, 1)
+    error_2q = depolarizing_error(two_qubit_error, 2)
+    noise_model.add_all_qubit_quantum_error(error_1q, [
+        'u1', 'u2', 'u3', 'rx', 'ry', 'rz', 'x', 'y', 'z',
+        'h', 's', 't', 'sdg', 'tdg', 'id', 'sx', 'sxdg',
+    ])
+    noise_model.add_all_qubit_quantum_error(error_2q, ['cx', 'cz', 'swap', 'ecr'])
+
+    simulator = AerSimulator(
+        noise_model=noise_model,
+        coupling_map=coupling_map,
+    )
+
+    # Parse student circuit
+    circuit, post_select, initial_layout, err = execute_circuit_code(student_circuit_code)
+    if circuit is None:
+        return {"success": False, "error": f"Circuit error: {err}"}
+
+    # Record circuit stats before transpilation
+    qubit_count = circuit.num_qubits
+    gate_count = sum(1 for _ in circuit)
+    circuit_depth = circuit.depth()
+
+    if qubit_count > 16:
+        return {"success": False, "error": f"Circuit uses {qubit_count} qubits but fake hardware only has 16"}
+
+    # Ensure measurements exist
+    from qiskit.circuit import Measure
+    has_measure = any(isinstance(inst.operation, Measure) for inst in circuit)
+    if not has_measure:
+        circuit.measure_all()
+
+    # Transpile to 4x4 grid topology
+    transpile_kwargs = {
+        "backend": simulator,
+        "optimization_level": 3,
+    }
+    if initial_layout:
+        transpile_kwargs["initial_layout"] = initial_layout
+
+    tomography_correlators = None
+
+    if eval_method == "tomography":
+        tomo_circuits = prepare_tomography_circuits(circuit)
+        counts_zz = _run_fake_hw_simulation(tomo_circuits["ZZ"], simulator, shots, transpile_kwargs)
+        counts_xx = _run_fake_hw_simulation(tomo_circuits["XX"], simulator, shots, transpile_kwargs)
+        counts_yy = _run_fake_hw_simulation(tomo_circuits["YY"], simulator, shots, transpile_kwargs)
+
+        fidelity_after, tomography_correlators, post_selected_shots = compute_fidelity_tomography(
+            counts_zz, counts_xx, counts_yy, post_select
+        )
+        counts_display = counts_zz
+        total_shots = sum(counts_zz.values())
+    else:
+        ib_circuit = prepare_inverse_bell_circuit(circuit)
+        counts_display = _run_fake_hw_simulation(ib_circuit, simulator, shots, transpile_kwargs)
+        total_shots = sum(counts_display.values())
+        fidelity_after, post_selected_shots, _ = compute_fidelity_inverse_bell(
+            counts_display, post_select
+        )
+
+    success_probability = post_selected_shots / total_shots if total_shots > 0 else 0.0
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    return {
+        "success": True,
+        "fidelity_after": fidelity_after,
+        "measurements": counts_display,
+        "qubit_count": qubit_count,
+        "gate_count": gate_count,
+        "circuit_depth": circuit_depth,
+        "execution_time_ms": elapsed_ms,
+        "success_probability": success_probability,
+        "post_selected_shots": post_selected_shots,
+        "eval_method": eval_method,
+        "tomography_correlators": tomography_correlators,
+        "initial_layout": initial_layout,
+        "backend": "fake_4x4",
+    }
+
+
+def _run_fake_hw_simulation(circuit, simulator, shots, transpile_kwargs):
+    """Transpile to fake hardware topology and run noisy simulation."""
+    from qiskit import transpile
+    transpiled = transpile(circuit, **transpile_kwargs)
+    job = simulator.run(transpiled, shots=shots)
+    return job.result().get_counts()
+
+
 # ============ Homework CRUD ============
 
 def create_homework(

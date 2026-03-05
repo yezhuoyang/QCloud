@@ -169,3 +169,47 @@ class HomeworkSubmission(Base):
     # Relationships
     homework = relationship("Homework", back_populates="submissions")
     token = relationship("HomeworkToken", back_populates="submissions")
+
+
+class FakeHardwareSubmission(Base):
+    """
+    Submission to the fake 4x4 grid hardware (noisy simulator with topology).
+    Used for a separate leaderboard when real hardware is unavailable.
+    """
+    __tablename__ = "fake_hardware_submissions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    homework_id = Column(String, ForeignKey("homeworks.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_id = Column(String, ForeignKey("homework_tokens.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Student circuit code
+    code = Column(Text, nullable=False)
+
+    # Execution config
+    backend_name = Column(String, default="fake_4x4", nullable=False)
+    shots = Column(Integer, default=1024)
+    eval_method = Column(String, default="inverse_bell", nullable=False)
+    initial_layout = Column(Text, nullable=True)  # JSON list of ints
+
+    # Results
+    measurements = Column(Text, nullable=True)  # JSON
+    fidelity_after = Column(Float, nullable=True)
+    success_probability = Column(Float, nullable=True)
+    post_selected_shots = Column(Integer, nullable=True)
+    tomography_correlators = Column(Text, nullable=True)  # JSON
+
+    # Circuit statistics
+    qubit_count = Column(Integer, nullable=True)
+    gate_count = Column(Integer, nullable=True)
+    circuit_depth = Column(Integer, nullable=True)
+
+    # Status
+    status = Column(String, default="completed", nullable=False)
+    error_message = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    homework = relationship("Homework")
+    token = relationship("HomeworkToken")

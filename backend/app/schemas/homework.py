@@ -413,3 +413,54 @@ class HomeworkCheckTranspileResponse(BaseModel):
     transpiled_gate_count: Optional[int] = None
     transpiled_qubit_count: Optional[int] = None
     physical_qubits: Optional[List[int]] = None
+
+
+# ============ Fake Hardware ============
+
+class FakeHardwareSubmitRequest(BaseModel):
+    """Request to submit to the fake 4x4 grid hardware"""
+    token: str = Field(..., description="Student's homework token")
+    homework_id: str = Field(..., description="Homework ID")
+    code: str = Field(..., description="Student's circuit code")
+    shots: int = Field(default=1024, ge=1, le=8192)
+    eval_method: str = Field(default="inverse_bell", description="'inverse_bell' or 'tomography'")
+
+
+class FakeHardwareSubmitResponse(BaseModel):
+    """Response from fake hardware submission"""
+    success: bool
+    error: Optional[str] = None
+    submission_id: Optional[str] = None
+    fidelity_after: Optional[float] = None
+    success_probability: Optional[float] = None
+    post_selected_shots: Optional[int] = None
+    measurements: Optional[Dict[str, int]] = None
+    qubit_count: Optional[int] = None
+    gate_count: Optional[int] = None
+    circuit_depth: Optional[int] = None
+    execution_time_ms: Optional[float] = None
+    eval_method: str = "inverse_bell"
+    tomography_correlators: Optional[Dict[str, float]] = None
+    backend: str = "fake_4x4"
+
+
+class FakeHardwareLeaderboardEntry(BaseModel):
+    """Single entry on the fake hardware leaderboard"""
+    rank: int
+    student_label: str
+    display_name: Optional[str] = None
+    method_name: Optional[str] = None
+    fidelity_after: float
+    success_probability: Optional[float] = None
+    eval_method: str
+    qubit_count: Optional[int] = None
+    gate_count: Optional[int] = None
+    circuit_depth: Optional[int] = None
+    created_at: Optional[str] = None
+
+
+class FakeHardwareLeaderboardResponse(BaseModel):
+    """Fake hardware leaderboard response"""
+    entries: List[FakeHardwareLeaderboardEntry]
+    total_students: int
+    updated_at: Optional[str] = None

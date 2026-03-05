@@ -14,7 +14,7 @@ from sqlalchemy import func, desc
 from ..database import get_db
 from ..core.deps import get_admin_user
 from ..models.user import User
-from ..models.homework import Homework, HomeworkToken, HomeworkSubmission
+from ..models.homework import Homework, HomeworkToken, HomeworkSubmission, FakeHardwareSubmission
 from ..services.homework_service import (
     verify_homework_token,
     create_homework,
@@ -25,6 +25,7 @@ from ..services.homework_service import (
     encrypt_api_key,
     decrypt_api_key,
     simulate_homework_noisy,
+    simulate_fake_hardware,
 )
 from ..services.homework_queue import homework_queue
 from ..services.code_validator import validate_code
@@ -62,6 +63,10 @@ from ..schemas.homework import (
     AdminSubmissionListResponse,
     AdminDirectSubmitRequest,
     StudentEntry,
+    FakeHardwareSubmitRequest,
+    FakeHardwareSubmitResponse,
+    FakeHardwareLeaderboardEntry,
+    FakeHardwareLeaderboardResponse,
 )
 
 router = APIRouter(prefix="/homework", tags=["Homework"])
@@ -1065,4 +1070,161 @@ def _format_submission(sub: HomeworkSubmission) -> HomeworkSubmissionResponse:
         created_at=sub.created_at,
         started_at=sub.started_at,
         completed_at=sub.completed_at,
+    )
+
+
+# ============ Fake Hardware (4x4 Grid) ============
+
+
+@router.post("/fake-hardware/submit", response_model=FakeHardwareSubmitResponse)
+async def submit_to_fake_hardware(
+    request: FakeHardwareSubmitRequest,
+    db: Session = Depends(get_db),
+):
+    """Submit a circuit to the fake 4x4 grid hardware (noisy simulation with topology)."""
+    homework = get_homework(db, request.homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+    if not homework.is_active:
+        raise HTTPException(status_code=400, detail="Homework is not active")
+
+    # Verify token
+    token_record = verify_homework_token(db, homework, request.token)
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid or inactive token")
+
+    # Validate eval method
+    eval_method = request.eval_method.lower()
+    if eval_method not in ("inverse_bell", "tomography"):
+        raise HTTPException(status_code=400, detail="eval_method must be 'inverse_bell' or 'tomography'")
+
+    # Run on fake hardware
+    result = simulate_fake_hardware(
+        student_circuit_code=request.code,
+        shots=request.shots,
+        eval_method=eval_method,
+    )
+
+    if not result.get("success"):
+        return FakeHardwareSubmitResponse(
+            success=False,
+            error=result.get("error", "Simulation failed"),
+        )
+
+    # Store the submission
+    submission = FakeHardwareSubmission(
+        homework_id=homework.id,
+        token_id=token_record.id,
+        code=request.code,
+        shots=request.shots,
+        eval_method=eval_method,
+        initial_layout=json.dumps(result.get("initial_layout")) if result.get("initial_layout") else None,
+        measurements=json.dumps(result.get("measurements")),
+        fidelity_after=result.get("fidelity_after"),
+        success_probability=result.get("success_probability"),
+        post_selected_shots=result.get("post_selected_shots"),
+        tomography_correlators=json.dumps(result.get("tomography_correlators")) if result.get("tomography_correlators") else None,
+        qubit_count=result.get("qubit_count"),
+        gate_count=result.get("gate_count"),
+        circuit_depth=result.get("circuit_depth"),
+        status="completed",
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    return FakeHardwareSubmitResponse(
+        success=True,
+        submission_id=submission.id,
+        fidelity_after=result.get("fidelity_after"),
+        success_probability=result.get("success_probability"),
+        post_selected_shots=result.get("post_selected_shots"),
+        measurements=result.get("measurements"),
+        qubit_count=result.get("qubit_count"),
+        gate_count=result.get("gate_count"),
+        circuit_depth=result.get("circuit_depth"),
+        execution_time_ms=result.get("execution_time_ms"),
+        eval_method=eval_method,
+        tomography_correlators=result.get("tomography_correlators"),
+    )
+
+
+@router.get("/fake-hardware/leaderboard/{homework_id}", response_model=FakeHardwareLeaderboardResponse)
+async def get_fake_hardware_leaderboard(
+    homework_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get the fake hardware leaderboard showing best result per student."""
+    homework = get_homework(db, homework_id)
+    if not homework:
+        raise HTTPException(status_code=404, detail="Homework not found")
+
+    # Get best fidelity per token (student) using subquery
+    from sqlalchemy import and_
+
+    best_sub = (
+        db.query(
+            FakeHardwareSubmission.token_id,
+            func.max(FakeHardwareSubmission.fidelity_after).label("best_fidelity"),
+        )
+        .filter(
+            FakeHardwareSubmission.homework_id == homework.id,
+            FakeHardwareSubmission.status == "completed",
+            FakeHardwareSubmission.fidelity_after.isnot(None),
+        )
+        .group_by(FakeHardwareSubmission.token_id)
+        .subquery()
+    )
+
+    # Join to get full submission details for each student's best result
+    results = (
+        db.query(FakeHardwareSubmission, HomeworkToken)
+        .join(HomeworkToken, FakeHardwareSubmission.token_id == HomeworkToken.id)
+        .join(
+            best_sub,
+            and_(
+                FakeHardwareSubmission.token_id == best_sub.c.token_id,
+                FakeHardwareSubmission.fidelity_after == best_sub.c.best_fidelity,
+            ),
+        )
+        .filter(
+            FakeHardwareSubmission.homework_id == homework.id,
+            FakeHardwareSubmission.status == "completed",
+        )
+        .order_by(desc(FakeHardwareSubmission.fidelity_after))
+        .all()
+    )
+
+    # Deduplicate (in case of ties, take latest)
+    seen_tokens = set()
+    entries = []
+    rank = 0
+    for sub, token in results:
+        if token.id in seen_tokens:
+            continue
+        seen_tokens.add(token.id)
+        rank += 1
+        entries.append(FakeHardwareLeaderboardEntry(
+            rank=rank,
+            student_label=token.student_uid[:6] if token.student_uid else "???",
+            display_name=token.display_name,
+            method_name=token.method_name,
+            fidelity_after=sub.fidelity_after,
+            success_probability=sub.success_probability,
+            eval_method=sub.eval_method or "inverse_bell",
+            qubit_count=sub.qubit_count,
+            gate_count=sub.gate_count,
+            circuit_depth=sub.circuit_depth,
+            created_at=sub.created_at.isoformat() if sub.created_at else None,
+        ))
+
+    total_students = db.query(HomeworkToken).filter(
+        HomeworkToken.homework_id == homework.id,
+        HomeworkToken.is_active == True,
+    ).count()
+
+    return FakeHardwareLeaderboardResponse(
+        entries=entries,
+        total_students=total_students,
+        updated_at=datetime.utcnow().isoformat(),
     )

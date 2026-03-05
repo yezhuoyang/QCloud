@@ -18,6 +18,7 @@ import {
   type HomeworkQueueStatus,
   type HomeworkSimulateResult,
   type CheckTranspileResult,
+  type FakeHardwareSubmitResult,
 } from '../utils/api'
 import { findProviderByBackend, HARDWARE_PROVIDERS } from '../data/hardwareProviders'
 import { getCalibrationData } from '../data/hardwareCalibrationData'
@@ -143,6 +144,11 @@ function HomeworkPage() {
   const [simulateMode, setSimulateMode] = useState<'distillation' | 'bell_pair'>('distillation')
   const [singleQubitError, setSingleQubitError] = useState(0.01)
   const [twoQubitError, setTwoQubitError] = useState(0.02)
+
+  // Fake hardware state
+  const [isSubmittingFakeHw, setIsSubmittingFakeHw] = useState(false)
+  const [fakeHwResult, setFakeHwResult] = useState<FakeHardwareSubmitResult | null>(null)
+  const [fakeHwError, setFakeHwError] = useState<string | null>(null)
 
   // Queue & history state
   const [queueStatus, setQueueStatus] = useState<HomeworkQueueStatus | null>(null)
@@ -315,6 +321,34 @@ function HomeworkPage() {
       setSimulateError(err.detail || err.message || 'Simulation failed')
     } finally {
       setIsSimulating(false)
+    }
+  }
+
+  const handleSubmitFakeHardware = async () => {
+    if (!homeworkId || !token) return
+    setIsSubmittingFakeHw(true)
+    setFakeHwError(null)
+    setFakeHwResult(null)
+    try {
+      const codeToRun = editorMode === 'composer' ? compileToQiskit(circuit, postSelect, initialLayout || undefined) : code
+      const validation = validateCircuitCode(codeToRun)
+      if (!validation.valid) {
+        setFakeHwError('Code validation failed:\n' + validation.errors.join('\n'))
+        setIsSubmittingFakeHw(false)
+        return
+      }
+      const result = await homeworkApi.submitFakeHardware({
+        token,
+        homework_id: homeworkId,
+        code: codeToRun,
+        shots,
+        eval_method: evalMethod,
+      })
+      setFakeHwResult(result)
+    } catch (err: any) {
+      setFakeHwError(err.detail || err.message || 'Fake hardware submission failed')
+    } finally {
+      setIsSubmittingFakeHw(false)
     }
   }
 
@@ -851,6 +885,15 @@ qc.measure_all()
           >
             {isSubmitting ? 'Submitting...' : 'Submit to Hardware'}
           </button>
+          {/* Fake hardware submit - requires token */}
+          <button
+            onClick={handleSubmitFakeHardware}
+            disabled={isSubmittingFakeHw || !isTokenVerified}
+            title={!isTokenVerified ? 'Enter your token to submit to fake hardware' : undefined}
+            className="px-4 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
+          >
+            {isSubmittingFakeHw ? 'Submitting...' : 'Submit to FakeHardware'}
+          </button>
         </div>
       </div>
 
@@ -947,6 +990,71 @@ qc.measure_all()
             </div>
           ) : simulatorResult && !simulatorResult.success ? (
             <div className="px-4 pb-3 text-xs text-red-600">{simulatorResult.error}</div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Fake Hardware Results Panel */}
+      {(fakeHwResult || fakeHwError) && (
+        <div className="border-b border-qcloud-border bg-orange-50">
+          <div className="px-4 py-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-qcloud-text uppercase tracking-wider">
+              Fake Hardware Results (4x4 Grid)
+            </span>
+            <button
+              onClick={() => { setFakeHwResult(null); setFakeHwError(null) }}
+              className="text-xs text-qcloud-muted hover:text-red-500"
+            >
+              Clear
+            </button>
+          </div>
+          {fakeHwError ? (
+            <div className="px-4 pb-3 text-xs text-red-600">{fakeHwError}</div>
+          ) : fakeHwResult && fakeHwResult.success ? (
+            <div className="px-4 pb-3">
+              <div className={`grid ${fakeHwResult.success_probability != null ? 'grid-cols-2' : 'grid-cols-1'} gap-4 text-center`}>
+                <div>
+                  <div className="text-[10px] text-qcloud-muted">Your Fidelity</div>
+                  <div className="text-lg font-bold text-orange-600">
+                    {((fakeHwResult.fidelity_after || 0) * 100).toFixed(1)}%
+                  </div>
+                </div>
+                {fakeHwResult.success_probability != null && (
+                  <div>
+                    <div className="text-[10px] text-qcloud-muted">Success Prob.</div>
+                    <div className="text-lg font-bold text-purple-600">
+                      {(fakeHwResult.success_probability * 100).toFixed(1)}%
+                      {fakeHwResult.post_selected_shots != null && (
+                        <span className="text-[9px] font-normal text-qcloud-muted ml-1">
+                          ({fakeHwResult.post_selected_shots} shots)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {fakeHwResult.tomography_correlators && (
+                <div className="mt-2 flex gap-3 text-xs">
+                  <span className="text-qcloud-muted font-medium">Correlators:</span>
+                  {Object.entries(fakeHwResult.tomography_correlators).map(([basis, val]) => (
+                    <span key={basis} className="font-mono">
+                      <span className="text-purple-600">{basis}</span>={typeof val === 'number' ? val.toFixed(3) : val}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 text-[10px] text-qcloud-muted flex gap-4">
+                <span>Qubits: {fakeHwResult.qubit_count}</span>
+                <span>Gates: {fakeHwResult.gate_count}</span>
+                <span>Depth: {fakeHwResult.circuit_depth}</span>
+                <span>Time: {fakeHwResult.execution_time_ms?.toFixed(0)}ms</span>
+                <span className="ml-auto px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                  Fake 4x4 Grid
+                </span>
+              </div>
+            </div>
+          ) : fakeHwResult && !fakeHwResult.success ? (
+            <div className="px-4 pb-3 text-xs text-red-600">{fakeHwResult.error}</div>
           ) : null}
         </div>
       )}

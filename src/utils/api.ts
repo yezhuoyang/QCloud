@@ -1200,6 +1200,44 @@ export interface AdminSubmissionList {
   page_size: number;
 }
 
+// Fake hardware types
+export interface FakeHardwareSubmitResult {
+  success: boolean;
+  error?: string;
+  submission_id?: string;
+  fidelity_after?: number;
+  success_probability?: number;
+  post_selected_shots?: number;
+  measurements?: Record<string, number>;
+  qubit_count?: number;
+  gate_count?: number;
+  circuit_depth?: number;
+  execution_time_ms?: number;
+  eval_method: string;
+  tomography_correlators?: Record<string, number>;
+  backend: string;
+}
+
+export interface FakeHardwareLeaderboardEntry {
+  rank: number;
+  student_label: string;
+  display_name?: string;
+  method_name?: string;
+  fidelity_after: number;
+  success_probability?: number;
+  eval_method: string;
+  qubit_count?: number;
+  gate_count?: number;
+  circuit_depth?: number;
+  created_at?: string;
+}
+
+export interface FakeHardwareLeaderboard {
+  entries: FakeHardwareLeaderboardEntry[];
+  total_students: number;
+  updated_at?: string;
+}
+
 export interface HomeworkListItem {
   id: string;
   title: string;
@@ -1341,6 +1379,21 @@ export const homeworkApi = {
       method: 'POST',
       body: data,
     }),
+
+  /**
+   * Submit to fake 4x4 grid hardware (noisy simulator with topology)
+   */
+  submitFakeHardware: (data: { token: string; homework_id: string; code: string; shots?: number; eval_method?: string }) =>
+    apiRequest<FakeHardwareSubmitResult>('/homework/fake-hardware/submit', {
+      method: 'POST',
+      body: data,
+    }),
+
+  /**
+   * Get fake hardware leaderboard (best per student)
+   */
+  getFakeLeaderboard: (homeworkId: string) =>
+    apiRequest<FakeHardwareLeaderboard>(`/homework/fake-hardware/leaderboard/${homeworkId}`),
 
   // ---- Admin endpoints ----
 
