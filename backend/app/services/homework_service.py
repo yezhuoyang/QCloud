@@ -258,6 +258,20 @@ def _apply_post_selection(counts: dict, post_select: Optional[set]) -> Tuple[flo
 
 # ============ Evaluation Methods ============
 
+def _strip_classical_bits(circuit):
+    """
+    Rebuild circuit with only quantum registers, removing any leftover
+    classical bits (e.g. from QuantumCircuit(n, m)). This ensures
+    measure_all() produces clean bitstrings with exactly num_qubits bits.
+    """
+    from qiskit import QuantumCircuit
+    fresh = QuantumCircuit(circuit.num_qubits)
+    for inst in circuit.data:
+        if inst.operation.name != 'measure':
+            fresh.append(inst.operation, inst.qubits)
+    return fresh
+
+
 def prepare_inverse_bell_circuit(circuit):
     """
     Append inverse Bell verification to a circuit.
@@ -268,7 +282,7 @@ def prepare_inverse_bell_circuit(circuit):
     gates so the transpiler cannot algebraically cancel them (which would
     erase the noise those gates should introduce in simulation).
     """
-    clean = circuit.remove_final_measurements(inplace=False)
+    clean = _strip_classical_bits(circuit.remove_final_measurements(inplace=False))
     clean.barrier()
     clean.cx(0, 1)
     clean.h(0)
@@ -285,7 +299,7 @@ def prepare_tomography_circuits(circuit):
     A barrier separates the student circuit from the measurement-basis
     rotation gates so the transpiler cannot cancel them algebraically.
     """
-    clean = circuit.remove_final_measurements(inplace=False)
+    clean = _strip_classical_bits(circuit.remove_final_measurements(inplace=False))
     clean.barrier()
 
     # ZZ basis: measure in computational basis
@@ -623,12 +637,6 @@ def simulate_fake_hardware(
 
     if qubit_count > 16:
         return {"success": False, "error": f"Circuit uses {qubit_count} qubits but fake hardware only has 16"}
-
-    # Ensure measurements exist
-    from qiskit.circuit import Measure
-    has_measure = any(isinstance(inst.operation, Measure) for inst in circuit)
-    if not has_measure:
-        circuit.measure_all()
 
     # Transpile to 4x4 grid topology
     transpile_kwargs = {
