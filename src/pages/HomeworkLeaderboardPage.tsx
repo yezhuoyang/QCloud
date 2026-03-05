@@ -51,7 +51,7 @@ function HomeworkLeaderboardPage() {
               {leaderboard?.homework_title || 'Homework'} - Leaderboard
             </h1>
             <p className="text-sm text-qcloud-muted">
-              Ranked by final Bell pair fidelity
+              Rankings are based <span className="font-semibold text-qcloud-primary">solely on fidelity (accuracy)</span> of the output Bell pair — circuit size, depth, and gate count do not affect your rank.
             </p>
           </div>
         </div>
