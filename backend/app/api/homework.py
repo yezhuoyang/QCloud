@@ -578,7 +578,7 @@ async def check_transpile(
         else:
             fake_backend = GenericBackendV2(num_qubits=num_qubits)
 
-        opt_level = 1 if request.backend_name == "fake_4x4" else 3
+        opt_level = 0 if request.backend_name == "fake_4x4" else 3
         pm_kwargs = {"backend": fake_backend, "optimization_level": opt_level}
         if initial_layout:
             pm_kwargs["initial_layout"] = initial_layout

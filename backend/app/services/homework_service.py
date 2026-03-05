@@ -641,13 +641,11 @@ def simulate_fake_hardware(
     if qubit_count > 16:
         return {"success": False, "error": f"Circuit uses {qubit_count} qubits but fake hardware only has 16"}
 
-    # Transpile to 4x4 grid topology
-    # Use optimization_level=1 to preserve the student's circuit structure.
-    # Level 3 would algebraically simplify gates (e.g. cancel CX-CX pairs)
-    # before noise simulation, hiding the effect of redundant/bad gates.
+    # Transpile to 4x4 grid topology with NO optimization.
+    # Level 0: only routing/mapping, preserves every student gate as-is.
     transpile_kwargs = {
         "backend": simulator,
-        "optimization_level": 1,
+        "optimization_level": 0,
     }
     if initial_layout:
         transpile_kwargs["initial_layout"] = initial_layout
