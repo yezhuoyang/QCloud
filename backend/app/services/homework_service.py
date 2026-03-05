@@ -263,8 +263,13 @@ def prepare_inverse_bell_circuit(circuit):
     Append inverse Bell verification to a circuit.
     Maps |Phi+> -> |00>, |Phi-> -> |10>, |Psi+> -> |01>, |Psi-> -> |11>.
     Then F(Phi+) = P(00 on output qubits).
+
+    A barrier is inserted between the student circuit and the verification
+    gates so the transpiler cannot algebraically cancel them (which would
+    erase the noise those gates should introduce in simulation).
     """
     clean = circuit.remove_final_measurements(inplace=False)
+    clean.barrier()
     clean.cx(0, 1)
     clean.h(0)
     clean.measure_all()
@@ -276,8 +281,12 @@ def prepare_tomography_circuits(circuit):
     Create 3 circuit variants for Pauli correlator tomography on q0, q1.
     Ancilla qubits are always measured in the computational basis.
     Returns {"ZZ": circuit, "XX": circuit, "YY": circuit}.
+
+    A barrier separates the student circuit from the measurement-basis
+    rotation gates so the transpiler cannot cancel them algebraically.
     """
     clean = circuit.remove_final_measurements(inplace=False)
+    clean.barrier()
 
     # ZZ basis: measure in computational basis
     zz = clean.copy()
