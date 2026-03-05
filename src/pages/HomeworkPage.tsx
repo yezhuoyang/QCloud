@@ -97,8 +97,12 @@ function HomeworkPage() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [homeworkInfo, setHomeworkInfo] = useState<HomeworkInfo | null>(null)
 
-  // Code & editor state
-  const [code, setCode] = useState(STARTER_CODE)
+  // Code & editor state — initialize from localStorage draft if available
+  const [code, setCode] = useState(() => {
+    const draft = localStorage.getItem(`hw_draft_code_${homeworkId}`)
+    return draft ?? STARTER_CODE
+  })
+  const [codeSaved, setCodeSaved] = useState(true)
   const [editorMode, setEditorMode] = useState<EditorMode>('code')
   const [selectedBackend, setSelectedBackend] = useState('')
   const [shots, setShots] = useState(1024)
@@ -216,6 +220,17 @@ function HomeworkPage() {
     }, 10000)
     return () => clearInterval(interval)
   }, [homeworkId, homeworkInfo?.valid, token])
+
+  // Auto-save code to localStorage (debounced)
+  useEffect(() => {
+    if (!homeworkId) return
+    setCodeSaved(false)
+    const timer = setTimeout(() => {
+      localStorage.setItem(`hw_draft_code_${homeworkId}`, code)
+      setCodeSaved(true)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [code, homeworkId])
 
   // ============ Token / API handlers ============
 
@@ -775,6 +790,22 @@ qc.measure_all()
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             Circuit Composer
+          </button>
+          <div className="w-px h-4 bg-slate-600 mx-1" />
+          <span className={`text-[10px] ${codeSaved ? 'text-green-400' : 'text-yellow-400'}`}>
+            {codeSaved ? 'Draft saved' : 'Saving...'}
+          </span>
+          <button
+            onClick={() => {
+              if (window.confirm('Reset editor to starter code? Your current draft will be lost.')) {
+                setCode(STARTER_CODE)
+                localStorage.removeItem(`hw_draft_code_${homeworkId}`)
+              }
+            }}
+            className="px-2 py-0.5 text-[10px] text-red-400 border border-red-400/30 rounded hover:bg-red-400/10 transition-colors"
+            title="Reset to starter code (clears your draft)"
+          >
+            Reset
           </button>
         </div>
         <div className="flex items-center gap-2">
