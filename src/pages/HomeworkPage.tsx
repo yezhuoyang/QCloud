@@ -24,7 +24,13 @@ import { findProviderByBackend, HARDWARE_PROVIDERS } from '../data/hardwareProvi
 import { getCalibrationData } from '../data/hardwareCalibrationData'
 import HardwareTopology from '../components/HardwareTopology'
 
-const STARTER_CODE = `# BBPSSW Entanglement Distillation Protocol
+const STARTER_CODE = `# Entanglement Distillation — Starter Example (BBPSSW)
+#
+# GOAL: Achieve the highest fidelity Bell pair on qubits 0 and 1.
+#   You are NOT limited to BBPSSW! Feel free to design any distillation
+#   protocol you like — use more qubits, different gate sequences, creative
+#   post-selection strategies, or entirely new approaches. The only thing
+#   that matters is the fidelity of the output Bell pair.
 #
 # RULES:
 #   - Output Bell pair is ALWAYS on qubits 0 and 1.
@@ -55,7 +61,7 @@ const STARTER_CODE = `# BBPSSW Entanglement Distillation Protocol
 #   Check the hardware topology (click info button) to pick low-error qubits.
 #   Example: INITIAL_LAYOUT = [0, 1, 2, 3]
 #
-# BBPSSW Protocol:
+# --- Example: BBPSSW Protocol (you can replace this entirely!) ---
 #   1. Prepare two Bell pairs: (q0,q1) and (q2,q3)
 #   2. Bilateral CNOT from pair 1 to pair 2
 #   3. Measure all qubits
