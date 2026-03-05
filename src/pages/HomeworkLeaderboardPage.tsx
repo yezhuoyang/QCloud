@@ -239,7 +239,6 @@ function HomeworkLeaderboardPage() {
                       <th className="px-3 py-2">Method</th>
                       <th className="px-3 py-2 text-right">Fidelity</th>
                       <th className="px-3 py-2 text-right">Succ. Prob.</th>
-                      <th className="px-3 py-2 text-right">Circuit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -299,11 +298,6 @@ function HomeworkLeaderboardPage() {
                           {entry.success_probability != null
                             ? `${(entry.success_probability * 100).toFixed(1)}%`
                             : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right text-[10px] text-qcloud-muted">
-                          {entry.qubit_count != null && <span>Q:{entry.qubit_count} </span>}
-                          {entry.gate_count != null && <span>G:{entry.gate_count} </span>}
-                          {entry.circuit_depth != null && <span>D:{entry.circuit_depth}</span>}
                         </td>
                       </tr>
                     ))}
