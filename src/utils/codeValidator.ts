@@ -178,6 +178,8 @@ const ALLOWED_GATE_METHODS = new Set([
   'ccx', 'toffoli', 'cswap', 'fredkin',
   'measure', 'measure_all', 'barrier', 'reset',
   'draw',
+  // Dynamic circuit methods
+  'if_test', 'switch', 'for_loop', 'while_loop',
 ])
 
 // Dangerous builtins / keywords that should never appear as function calls
@@ -226,6 +228,9 @@ export function validateCircuitCode(code: string): ValidationResult {
     // Allow empty lines and comments
     if (trimmed === '' || trimmed.startsWith('#')) continue
 
+    // Allow dynamic circuit constructs: with qc.if_test(...), with qc.switch(...), etc.
+    if (/^with\s+qc\.\w+\s*\(/.test(trimmed)) continue
+
     // Check for blocked keywords at start of line
     const blockedKeyword = BLOCKED_KEYWORDS.find(kw => trimmed.startsWith(kw))
     if (blockedKeyword) {
@@ -255,6 +260,9 @@ export function validateCircuitCode(code: string): ValidationResult {
     // Allow print(qc.draw()) for debugging
     if (/^print\s*\(\s*qc\.draw\s*\(/.test(trimmed)) continue
 
+    // Allow qc.clbits / qc.qubits property access (used in dynamic circuits)
+    if (/^qc\.(clbits|qubits)\b/.test(trimmed)) continue
+
     // Allow qc.method(...) calls — validate the method name
     const methodMatch = trimmed.match(/^qc\.(\w+)\s*\(/)
     if (methodMatch) {
@@ -277,9 +285,6 @@ export function validateCircuitCode(code: string): ValidationResult {
 
     // Allow "pass" keyword (used in conditional blocks)
     if (trimmed === 'pass') continue
-
-    // Allow if_test blocks for dynamic circuits
-    if (/^with\s+qc\.if_test\s*\(/.test(trimmed)) continue
 
     // Anything else is suspicious
     errors.push(`Line ${lineNum}: Unrecognized statement — only gate operations on qc, POST_SELECT, and comments are allowed`)
