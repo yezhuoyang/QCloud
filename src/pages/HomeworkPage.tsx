@@ -337,6 +337,18 @@ function HomeworkPage() {
         setIsSubmittingFakeHw(false)
         return
       }
+      // Validate INITIAL_LAYOUT length matches qubit count
+      const layoutMatch = codeToRun.match(/INITIAL_LAYOUT\s*=\s*\[([^\]]*)\]/)
+      if (layoutMatch) {
+        const layoutNums = layoutMatch[1].split(',').map(s => s.trim()).filter(s => s.length > 0)
+        const qcMatch = codeToRun.match(/QuantumCircuit\(\s*(\d+)/)
+        const numQubits = qcMatch ? parseInt(qcMatch[1]) : (editorMode === 'composer' ? circuit.numQubits : 0)
+        if (numQubits > 0 && layoutNums.length !== numQubits) {
+          setFakeHwError(`INITIAL_LAYOUT has ${layoutNums.length} entries but circuit has ${numQubits} qubits. They must match.`)
+          setIsSubmittingFakeHw(false)
+          return
+        }
+      }
       const result = await homeworkApi.submitFakeHardware({
         token,
         homework_id: homeworkId,
@@ -885,15 +897,17 @@ qc.measure_all()
           >
             {isSubmitting ? 'Submitting...' : 'Submit to Hardware'}
           </button>
-          {/* Fake hardware submit - requires token */}
-          <button
-            onClick={handleSubmitFakeHardware}
-            disabled={isSubmittingFakeHw || !isTokenVerified}
-            title={!isTokenVerified ? 'Enter your token to submit to fake hardware' : undefined}
-            className="px-4 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
-          >
-            {isSubmittingFakeHw ? 'Submitting...' : 'Submit to FakeHardware'}
-          </button>
+          {/* Fake hardware submit - requires token and fake_4x4 backend selected */}
+          {selectedBackend === 'fake_4x4' && (
+            <button
+              onClick={handleSubmitFakeHardware}
+              disabled={isSubmittingFakeHw || !isTokenVerified}
+              title={!isTokenVerified ? 'Enter your token to submit to fake hardware' : undefined}
+              className="px-4 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-50"
+            >
+              {isSubmittingFakeHw ? 'Submitting...' : 'Submit to FakeHardware'}
+            </button>
+          )}
         </div>
       </div>
 
