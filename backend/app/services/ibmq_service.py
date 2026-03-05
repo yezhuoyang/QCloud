@@ -178,7 +178,7 @@ class IBMQService:
             print(f"[IBMQ] Using backend: {backend.name}")
 
             # Transpile for the backend using preset pass manager
-            pm = generate_preset_pass_manager(backend=backend, optimization_level=3)
+            pm = generate_preset_pass_manager(backend=backend, optimization_level=0)
             isa_circuit = pm.run(circuit)
 
             # Create sampler and submit job
@@ -259,7 +259,7 @@ class IBMQService:
             print(f"[IBMQ] Using backend: {backend.name}")
 
             # Transpile for the backend
-            pm = generate_preset_pass_manager(backend=backend, optimization_level=3)
+            pm = generate_preset_pass_manager(backend=backend, optimization_level=0)
             isa_circuit = pm.run(circuit)
 
             # Create sampler and submit job

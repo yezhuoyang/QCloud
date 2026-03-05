@@ -188,7 +188,7 @@ class HomeworkQueueManager:
             submission.circuit_depth = circuit_after.depth()
 
             # Create pass managers
-            pm_kwargs = {"backend": backend, "optimization_level": 3}
+            pm_kwargs = {"backend": backend, "optimization_level": 0}
             if initial_layout:
                 pm_kwargs["initial_layout"] = initial_layout
             pm_student = generate_preset_pass_manager(**pm_kwargs)
@@ -196,7 +196,7 @@ class HomeworkQueueManager:
             eval_method = submission.eval_method or "inverse_bell"
 
             if has_reference:
-                pm_ref = generate_preset_pass_manager(backend=backend, optimization_level=3)
+                pm_ref = generate_preset_pass_manager(backend=backend, optimization_level=0)
 
                 if eval_method == "tomography":
                     ref_tomo = prepare_tomography_circuits(circuit_before)

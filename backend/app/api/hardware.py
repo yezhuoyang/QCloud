@@ -360,7 +360,7 @@ def _submit_with_user_credentials(
             backend = service.least_busy(operational=True, simulator=False)
 
         # Transpile circuit for the backend
-        pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+        pm = generate_preset_pass_manager(backend=backend, optimization_level=0)
         isa_circuit = pm.run(circuit)
 
         # Get circuit stats
