@@ -4,10 +4,14 @@ Student endpoints use token authentication (not JWT).
 Admin endpoints use standard JWT admin authentication.
 """
 import json
+import asyncio
 from datetime import datetime
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks, Query
+
+# Limit concurrent simulations to prevent server overload
+_simulation_semaphore = asyncio.Semaphore(3)
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
@@ -503,17 +507,19 @@ async def simulate_homework(
             detail="Invalid eval_method. Use 'inverse_bell' or 'tomography'.",
         )
 
-    # Run noisy simulation
-    result = simulate_homework_noisy(
-        reference_circuit_code=homework.reference_circuit,
-        student_circuit_code=request.code,
-        shots=request.shots,
-        judge_code=homework.judge_code if request.mode == "distillation" else None,
-        mode=request.mode,
-        eval_method=eval_method,
-        single_qubit_error=request.single_qubit_error,
-        two_qubit_error=request.two_qubit_error,
-    )
+    # Run noisy simulation in thread pool to avoid blocking the event loop
+    async with _simulation_semaphore:
+        result = await asyncio.to_thread(
+            simulate_homework_noisy,
+            reference_circuit_code=homework.reference_circuit,
+            student_circuit_code=request.code,
+            shots=request.shots,
+            judge_code=homework.judge_code if request.mode == "distillation" else None,
+            mode=request.mode,
+            eval_method=eval_method,
+            single_qubit_error=request.single_qubit_error,
+            two_qubit_error=request.two_qubit_error,
+        )
 
     return HomeworkSimulateResponse(**result)
 
@@ -545,95 +551,95 @@ async def check_transpile(
     if request.backend_name not in backend_qubit_counts:
         raise HTTPException(status_code=400, detail=f"Unknown backend {request.backend_name}")
 
-    # Validate and parse code
-    is_valid, error = validate_code(request.code)
-    if not is_valid:
-        return HomeworkCheckTranspileResponse(success=False, error=f"Code validation error: {error}")
+    # Run transpilation in thread pool to avoid blocking the event loop
+    def _do_transpile():
+        is_valid, error = validate_code(request.code)
+        if not is_valid:
+            return HomeworkCheckTranspileResponse(success=False, error=f"Code validation error: {error}")
 
-    circuit, post_select, initial_layout, err = execute_circuit_code(request.code)
-    if circuit is None:
-        return HomeworkCheckTranspileResponse(success=False, error=f"Circuit parse error: {err}")
+        circuit, post_select, initial_layout, err = execute_circuit_code(request.code)
+        if circuit is None:
+            return HomeworkCheckTranspileResponse(success=False, error=f"Circuit parse error: {err}")
 
-    # Add measurements if not present
-    if not any(instr.operation.name == "measure" for instr in circuit.data):
-        circuit.measure_all()
+        if not any(instr.operation.name == "measure" for instr in circuit.data):
+            circuit.measure_all()
 
-    try:
-        from qiskit.transpiler import generate_preset_pass_manager, CouplingMap
-        from qiskit.providers.fake_provider import GenericBackendV2
+        try:
+            from qiskit.transpiler import generate_preset_pass_manager, CouplingMap
+            from qiskit.providers.fake_provider import GenericBackendV2
 
-        num_qubits = backend_qubit_counts.get(request.backend_name, 156)
+            num_qubits = backend_qubit_counts.get(request.backend_name, 156)
 
-        if request.backend_name == "fake_4x4":
-            # Build 4x4 grid with IBM-compatible basis gates
-            grid_edges = []
-            for row in range(4):
-                for col in range(4):
-                    q = row * 4 + col
-                    if col < 3:
-                        grid_edges.append([q, q + 1])
-                    if row < 3:
-                        grid_edges.append([q, q + 4])
-            fake_backend = GenericBackendV2(
-                num_qubits=16,
-                basis_gates=["cz", "id", "rx", "rz", "rzz", "sx", "x"],
-                coupling_map=grid_edges,
-                control_flow=True,
-                seed=42,
-                noise_info=True,
+            if request.backend_name == "fake_4x4":
+                grid_edges = []
+                for row in range(4):
+                    for col in range(4):
+                        q = row * 4 + col
+                        if col < 3:
+                            grid_edges.append([q, q + 1])
+                        if row < 3:
+                            grid_edges.append([q, q + 4])
+                fake_backend = GenericBackendV2(
+                    num_qubits=16,
+                    basis_gates=["cz", "id", "rx", "rz", "rzz", "sx", "x"],
+                    coupling_map=grid_edges,
+                    control_flow=True,
+                    seed=42,
+                    noise_info=True,
+                )
+            else:
+                fake_backend = GenericBackendV2(num_qubits=num_qubits)
+
+            pm_kwargs = {"backend": fake_backend, "optimization_level": 0}
+            if initial_layout:
+                pm_kwargs["initial_layout"] = initial_layout
+            pm = generate_preset_pass_manager(**pm_kwargs)
+
+            eval_method = request.eval_method or "inverse_bell"
+            if eval_method == "inverse_bell":
+                from ..services.homework_queue import prepare_inverse_bell_circuit
+                test_circuit = prepare_inverse_bell_circuit(circuit)
+            else:
+                from ..services.homework_queue import prepare_tomography_circuits
+                tomo = prepare_tomography_circuits(circuit)
+                test_circuit = tomo["ZZ"]
+
+            transpiled = pm.run(test_circuit)
+
+            physical_qubits = None
+            if transpiled.layout and transpiled.layout.initial_layout:
+                layout = transpiled.layout.initial_layout
+                physical_qubits = [layout[q] for q in test_circuit.qubits]
+
+            transpiled_qasm = transpiled.qasm() if hasattr(transpiled, 'qasm') else str(transpiled.draw(output='text'))
+
+            return HomeworkCheckTranspileResponse(
+                success=True,
+                initial_layout=initial_layout,
+                post_select=list(post_select) if post_select else None,
+                qubit_count=circuit.num_qubits,
+                gate_count=len(circuit.data),
+                circuit_depth=circuit.depth(),
+                transpiled_qasm=transpiled_qasm,
+                transpiled_depth=transpiled.depth(),
+                transpiled_gate_count=len(transpiled.data),
+                transpiled_qubit_count=transpiled.num_qubits,
+                physical_qubits=physical_qubits,
             )
-        else:
-            fake_backend = GenericBackendV2(num_qubits=num_qubits)
+        except Exception as e:
+            return HomeworkCheckTranspileResponse(
+                success=True,
+                initial_layout=initial_layout,
+                post_select=list(post_select) if post_select else None,
+                qubit_count=circuit.num_qubits,
+                gate_count=len(circuit.data),
+                circuit_depth=circuit.depth(),
+                error=f"Transpilation preview failed: {str(e)}",
+            )
 
-        pm_kwargs = {"backend": fake_backend, "optimization_level": 0}
-        if initial_layout:
-            pm_kwargs["initial_layout"] = initial_layout
-        pm = generate_preset_pass_manager(**pm_kwargs)
+    async with _simulation_semaphore:
+        return await asyncio.to_thread(_do_transpile)
 
-        # Prepare circuit with eval method
-        eval_method = request.eval_method or "inverse_bell"
-        if eval_method == "inverse_bell":
-            from ..services.homework_queue import prepare_inverse_bell_circuit
-            test_circuit = prepare_inverse_bell_circuit(circuit)
-        else:
-            from ..services.homework_queue import prepare_tomography_circuits
-            tomo = prepare_tomography_circuits(circuit)
-            test_circuit = tomo["ZZ"]  # Show ZZ basis as representative
-
-        transpiled = pm.run(test_circuit)
-
-        # Extract physical qubit mapping
-        physical_qubits = None
-        if transpiled.layout and transpiled.layout.initial_layout:
-            layout = transpiled.layout.initial_layout
-            # Get virtual -> physical mapping
-            physical_qubits = [layout[q] for q in test_circuit.qubits]
-
-        transpiled_qasm = transpiled.qasm() if hasattr(transpiled, 'qasm') else str(transpiled.draw(output='text'))
-
-        return HomeworkCheckTranspileResponse(
-            success=True,
-            initial_layout=initial_layout,
-            post_select=list(post_select) if post_select else None,
-            qubit_count=circuit.num_qubits,
-            gate_count=len(circuit.data),
-            circuit_depth=circuit.depth(),
-            transpiled_qasm=transpiled_qasm,
-            transpiled_depth=transpiled.depth(),
-            transpiled_gate_count=len(transpiled.data),
-            transpiled_qubit_count=transpiled.num_qubits,
-            physical_qubits=physical_qubits,
-        )
-    except Exception as e:
-        return HomeworkCheckTranspileResponse(
-            success=True,
-            initial_layout=initial_layout,
-            post_select=list(post_select) if post_select else None,
-            qubit_count=circuit.num_qubits,
-            gate_count=len(circuit.data),
-            circuit_depth=circuit.depth(),
-            error=f"Transpilation preview failed: {str(e)}",
-        )
 
 
 # ============ Admin Endpoints ============
@@ -1122,13 +1128,15 @@ async def submit_to_fake_hardware(
     if eval_method not in ("inverse_bell", "tomography"):
         raise HTTPException(status_code=400, detail="eval_method must be 'inverse_bell' or 'tomography'")
 
-    # Run on fake hardware
+    # Run on fake hardware in thread pool to avoid blocking the event loop
     try:
-        result = simulate_fake_hardware(
-            student_circuit_code=request.code,
-            shots=request.shots,
-            eval_method=eval_method,
-        )
+        async with _simulation_semaphore:
+            result = await asyncio.to_thread(
+                simulate_fake_hardware,
+                student_circuit_code=request.code,
+                shots=request.shots,
+                eval_method=eval_method,
+            )
     except Exception as e:
         import traceback
         traceback.print_exc()
