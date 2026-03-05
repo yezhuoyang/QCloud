@@ -266,9 +266,12 @@ def _strip_classical_bits(circuit):
     """
     from qiskit import QuantumCircuit
     fresh = QuantumCircuit(circuit.num_qubits)
+    # Build index mapping: original qubit object -> integer index
+    qubit_map = {q: i for i, q in enumerate(circuit.qubits)}
     for inst in circuit.data:
-        if inst.operation.name != 'measure':
-            fresh.append(inst.operation, inst.qubits)
+        if inst.operation.name not in ('measure', 'barrier'):
+            qubit_indices = [qubit_map[q] for q in inst.qubits]
+            fresh.append(inst.operation, qubit_indices)
     return fresh
 
 
