@@ -643,8 +643,9 @@ def simulate_fake_hardware(
 
     # Transpile to 4x4 grid topology with NO optimization.
     # Level 0: only routing/mapping, preserves every student gate as-is.
+    # Pass coupling_map explicitly — AerSimulator may not expose it to the transpiler.
     transpile_kwargs = {
-        "backend": simulator,
+        "coupling_map": coupling_map,
         "optimization_level": 0,
     }
     if initial_layout:
