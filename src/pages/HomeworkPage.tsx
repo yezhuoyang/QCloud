@@ -49,11 +49,10 @@ const STARTER_CODE = `# BBPSSW Entanglement Distillation Protocol
 #       {"00"} = c3=0, c2=0   |   {"01"} = c3=0, c2=1
 #       {"10"} = c3=1, c2=0   |   {"11"} = c3=1, c2=1
 #
-# QUBIT LAYOUT (optional):
+# QUBIT LAYOUT (required for Hardware / FakeHardware, not needed for Simulator):
 #   INITIAL_LAYOUT = [physical_qubit_for_q0, physical_qubit_for_q1, ...]
 #   Maps your logical qubits to specific physical qubits on the hardware.
 #   Check the hardware topology (click info button) to pick low-error qubits.
-#   If not defined, the transpiler chooses automatically (optimization_level=3).
 #   Example: INITIAL_LAYOUT = [0, 1, 2, 3]
 #
 # BBPSSW Protocol:
@@ -275,6 +274,13 @@ function HomeworkPage() {
         setIsSubmitting(false)
         return
       }
+      // INITIAL_LAYOUT is required for hardware submissions
+      const hwLayoutMatch = codeToSubmit.match(/^[^#\n]*INITIAL_LAYOUT\s*=\s*\[([^\]]*)\]/m)
+      if (!hwLayoutMatch || !hwLayoutMatch[1].trim()) {
+        setSubmitError('INITIAL_LAYOUT is required for hardware submissions. Define it in your code, e.g.:\nINITIAL_LAYOUT = [0, 1, 2, 3]')
+        setIsSubmitting(false)
+        return
+      }
       const useOwnKey = submitKeyChoice === 'own' && customApiKey.trim()
       await homeworkApi.submit({
         token,
@@ -337,17 +343,21 @@ function HomeworkPage() {
         setIsSubmittingFakeHw(false)
         return
       }
-      // Validate INITIAL_LAYOUT length matches qubit count (skip comments)
+      // INITIAL_LAYOUT is required for fake hardware submissions
       const layoutMatch = codeToRun.match(/^[^#\n]*INITIAL_LAYOUT\s*=\s*\[([^\]]*)\]/m)
-      if (layoutMatch) {
-        const layoutNums = layoutMatch[1].split(',').map(s => s.trim()).filter(s => /^\d+$/.test(s))
-        const qcMatch = codeToRun.match(/QuantumCircuit\(\s*(\d+)/)
-        const numQubits = qcMatch ? parseInt(qcMatch[1]) : (editorMode === 'composer' ? circuit.numQubits : 0)
-        if (numQubits > 0 && layoutNums.length > 0 && layoutNums.length !== numQubits) {
-          setFakeHwError(`INITIAL_LAYOUT has ${layoutNums.length} entries but circuit has ${numQubits} qubits. They must match.`)
-          setIsSubmittingFakeHw(false)
-          return
-        }
+      if (!layoutMatch || !layoutMatch[1].trim()) {
+        setFakeHwError('INITIAL_LAYOUT is required for fake hardware submissions. Define it in your code, e.g.:\nINITIAL_LAYOUT = [0, 1, 2, 3]')
+        setIsSubmittingFakeHw(false)
+        return
+      }
+      // Validate INITIAL_LAYOUT length matches qubit count
+      const layoutNums = layoutMatch[1].split(',').map(s => s.trim()).filter(s => /^\d+$/.test(s))
+      const qcMatch = codeToRun.match(/QuantumCircuit\(\s*(\d+)/)
+      const numQubits = qcMatch ? parseInt(qcMatch[1]) : (editorMode === 'composer' ? circuit.numQubits : 0)
+      if (numQubits > 0 && layoutNums.length > 0 && layoutNums.length !== numQubits) {
+        setFakeHwError(`INITIAL_LAYOUT has ${layoutNums.length} entries but circuit has ${numQubits} qubits. They must match.`)
+        setIsSubmittingFakeHw(false)
+        return
       }
       const result = await homeworkApi.submitFakeHardware({
         token,
