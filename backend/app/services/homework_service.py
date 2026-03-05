@@ -599,6 +599,7 @@ def simulate_fake_hardware(
     from qiskit_aer.noise import NoiseModel, depolarizing_error
     from qiskit import transpile
     from qiskit.transpiler import CouplingMap
+    from qiskit.providers.fake_provider import GenericBackendV2
 
     start_time = time.time()
 
@@ -608,20 +609,32 @@ def simulate_fake_hardware(
         for col in range(4):
             qubit = row * 4 + col
             if col < 3:  # horizontal neighbor
-                grid_edges.append((qubit, qubit + 1))
+                grid_edges.append([qubit, qubit + 1])
             if row < 3:  # vertical neighbor
-                grid_edges.append((qubit, qubit + 4))
+                grid_edges.append([qubit, qubit + 4])
     coupling_map = CouplingMap(grid_edges)
 
-    # Build depolarization noise model
+    # IBM-compatible basis gates (same as real hardware like ibm_torino)
+    BASIS_1Q = ['id', 'rx', 'rz', 'sx', 'x']
+    BASIS_2Q = ['cz', 'rzz']
+    BASIS_GATES = BASIS_1Q + BASIS_2Q
+
+    # Build fake backend with proper basis gates and topology
+    fake_backend = GenericBackendV2(
+        num_qubits=16,
+        basis_gates=BASIS_GATES,
+        coupling_map=grid_edges,
+        control_flow=True,
+        seed=42,
+        noise_info=True,
+    )
+
+    # Build depolarization noise model covering ALL basis gates
     noise_model = NoiseModel()
     error_1q = depolarizing_error(single_qubit_error, 1)
     error_2q = depolarizing_error(two_qubit_error, 2)
-    noise_model.add_all_qubit_quantum_error(error_1q, [
-        'u1', 'u2', 'u3', 'rx', 'ry', 'rz', 'x', 'y', 'z',
-        'h', 's', 't', 'sdg', 'tdg', 'id', 'sx', 'sxdg',
-    ])
-    noise_model.add_all_qubit_quantum_error(error_2q, ['cx', 'cz', 'swap', 'ecr'])
+    noise_model.add_all_qubit_quantum_error(error_1q, BASIS_1Q)
+    noise_model.add_all_qubit_quantum_error(error_2q, BASIS_2Q + ['swap'])
 
     simulator = AerSimulator(
         noise_model=noise_model,
@@ -641,11 +654,11 @@ def simulate_fake_hardware(
     if qubit_count > 16:
         return {"success": False, "error": f"Circuit uses {qubit_count} qubits but fake hardware only has 16"}
 
-    # Transpile to 4x4 grid topology with NO optimization.
+    # Transpile to 4x4 grid topology with NO gate optimization.
+    # Use the fake backend so transpiler decomposes into IBM basis gates.
     # Level 0: only routing/mapping, preserves every student gate as-is.
-    # Pass coupling_map explicitly — AerSimulator may not expose it to the transpiler.
     transpile_kwargs = {
-        "coupling_map": coupling_map,
+        "backend": fake_backend,
         "optimization_level": 0,
     }
     if initial_layout:

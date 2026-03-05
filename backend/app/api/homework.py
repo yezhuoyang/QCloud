@@ -565,16 +565,23 @@ async def check_transpile(
         num_qubits = backend_qubit_counts.get(request.backend_name, 156)
 
         if request.backend_name == "fake_4x4":
-            # Build 4x4 grid coupling map matching the actual fake hardware
+            # Build 4x4 grid with IBM-compatible basis gates
             grid_edges = []
             for row in range(4):
                 for col in range(4):
                     q = row * 4 + col
                     if col < 3:
-                        grid_edges.append((q, q + 1))
+                        grid_edges.append([q, q + 1])
                     if row < 3:
-                        grid_edges.append((q, q + 4))
-            fake_backend = GenericBackendV2(num_qubits=16, coupling_map=CouplingMap(grid_edges))
+                        grid_edges.append([q, q + 4])
+            fake_backend = GenericBackendV2(
+                num_qubits=16,
+                basis_gates=["cz", "id", "rx", "rz", "rzz", "sx", "x"],
+                coupling_map=grid_edges,
+                control_flow=True,
+                seed=42,
+                noise_info=True,
+            )
         else:
             fake_backend = GenericBackendV2(num_qubits=num_qubits)
 
