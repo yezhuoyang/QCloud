@@ -180,7 +180,7 @@ class FakeHardwareSubmission(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     homework_id = Column(String, ForeignKey("homeworks.id", ondelete="CASCADE"), nullable=False, index=True)
-    token_id = Column(String, ForeignKey("homework_tokens.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_id = Column(String, ForeignKey("homework_tokens.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Student circuit code
     code = Column(Text, nullable=False)

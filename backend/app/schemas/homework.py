@@ -419,7 +419,7 @@ class HomeworkCheckTranspileResponse(BaseModel):
 
 class FakeHardwareSubmitRequest(BaseModel):
     """Request to submit to the fake 4x4 grid hardware"""
-    token: str = Field(..., description="Student's homework token")
+    token: Optional[str] = Field(None, description="Student's homework token (optional for admins)")
     homework_id: str = Field(..., description="Homework ID")
     code: str = Field(..., description="Student's circuit code")
     shots: int = Field(default=1024, ge=1, le=8192)

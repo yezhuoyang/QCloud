@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
 from ..database import get_db
-from ..core.deps import get_admin_user
+from ..core.deps import get_admin_user, get_current_user_optional
 from ..models.user import User
 from ..models.homework import Homework, HomeworkToken, HomeworkSubmission, FakeHardwareSubmission
 from ..services.homework_service import (
@@ -1100,6 +1100,7 @@ def _format_submission(sub: HomeworkSubmission) -> HomeworkSubmissionResponse:
 async def submit_to_fake_hardware(
     request: FakeHardwareSubmitRequest,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """Submit a circuit to the fake 4x4 grid hardware (noisy simulation with topology)."""
     homework = get_homework(db, request.homework_id)
@@ -1108,9 +1109,12 @@ async def submit_to_fake_hardware(
     if not homework.is_active:
         raise HTTPException(status_code=400, detail="Homework is not active")
 
-    # Verify token
-    token_record = verify_homework_token(db, request.token)
-    if not token_record:
+    # Admins can skip token verification
+    is_admin = current_user and current_user.is_admin
+    token_record = None
+    if request.token:
+        token_record = verify_homework_token(db, request.token)
+    if not token_record and not is_admin:
         raise HTTPException(status_code=401, detail="Invalid or inactive token")
 
     # Validate eval method
@@ -1142,7 +1146,7 @@ async def submit_to_fake_hardware(
     # Store the submission
     submission = FakeHardwareSubmission(
         homework_id=homework.id,
-        token_id=token_record.id,
+        token_id=token_record.id if token_record else None,
         code=request.code,
         shots=request.shots,
         eval_method=eval_method,

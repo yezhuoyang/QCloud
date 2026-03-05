@@ -1384,10 +1384,11 @@ export const homeworkApi = {
   /**
    * Submit to fake 4x4 grid hardware (noisy simulator with topology)
    */
-  submitFakeHardware: (data: { token: string; homework_id: string; code: string; shots?: number; eval_method?: string }) =>
+  submitFakeHardware: (data: { token?: string; homework_id: string; code: string; shots?: number; eval_method?: string }) =>
     apiRequest<FakeHardwareSubmitResult>('/homework/fake-hardware/submit', {
       method: 'POST',
       body: data,
+      requireAuth: !data.token,
     }),
 
   /**

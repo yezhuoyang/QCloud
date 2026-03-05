@@ -331,7 +331,7 @@ function HomeworkPage() {
   }
 
   const handleSubmitFakeHardware = async () => {
-    if (!homeworkId || !token) return
+    if (!homeworkId || (!token && !isAdmin)) return
     setIsSubmittingFakeHw(true)
     setFakeHwError(null)
     setFakeHwResult(null)
@@ -360,7 +360,7 @@ function HomeworkPage() {
         return
       }
       const result = await homeworkApi.submitFakeHardware({
-        token,
+        token: token || undefined,
         homework_id: homeworkId,
         code: codeToRun,
         shots,
