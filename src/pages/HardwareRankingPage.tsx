@@ -128,7 +128,6 @@ function HardwareRankingPage() {
                       <th className="px-3 py-2">Backend</th>
                       <th className="px-3 py-2 text-right">Avg Fidelity</th>
                       <th className="px-3 py-2 text-right">Best</th>
-                      <th className="px-3 py-2 text-right">Avg Ref</th>
                       <th className="px-3 py-2 text-right">Jobs</th>
                       <th className="px-3 py-2 text-right">Students</th>
                     </tr>
@@ -180,9 +179,6 @@ function HardwareRankingPage() {
                           </td>
                           <td className="px-3 py-3 text-right text-sm text-green-600 font-medium">
                             {(entry.best_fidelity_after * 100).toFixed(2)}%
-                          </td>
-                          <td className="px-3 py-3 text-right text-sm text-qcloud-muted">
-                            {(entry.avg_fidelity_before * 100).toFixed(2)}%
                           </td>
                           <td className="px-3 py-3 text-right text-sm text-qcloud-muted">
                             {entry.total_jobs}
@@ -245,16 +241,6 @@ function HardwareRankingPage() {
                     label="Avg Fidelity (Student)"
                     value={`${(selectedEntry.avg_fidelity_after * 100).toFixed(3)}%`}
                     color="text-qcloud-primary"
-                  />
-                  <StatCard
-                    label="Avg Fidelity (Reference)"
-                    value={`${(selectedEntry.avg_fidelity_before * 100).toFixed(3)}%`}
-                    color="text-qcloud-muted"
-                  />
-                  <StatCard
-                    label="Avg Improvement"
-                    value={`${selectedEntry.avg_fidelity_improvement > 0 ? '+' : ''}${(selectedEntry.avg_fidelity_improvement * 100).toFixed(3)}%`}
-                    color={selectedEntry.avg_fidelity_improvement > 0 ? 'text-green-600' : 'text-red-500'}
                   />
                   <StatCard
                     label="Best Fidelity"
