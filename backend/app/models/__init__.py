@@ -7,6 +7,7 @@ from .job import IBMQJob
 from .problem import Category, Problem, Example
 from .hardware_submission import HardwareSubmission
 from .homework import Homework, HomeworkToken, HomeworkSubmission
+from .challenge import Challenge, ChallengeToken, ChallengeSubmission
 
 __all__ = [
     "User",
@@ -21,4 +22,7 @@ __all__ = [
     "Homework",
     "HomeworkToken",
     "HomeworkSubmission",
+    "Challenge",
+    "ChallengeToken",
+    "ChallengeSubmission",
 ]

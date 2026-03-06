@@ -1585,3 +1585,375 @@ export const homeworkApi = {
       { method: 'POST', body: data, requireAuth: true }
     ),
 };
+
+// ============ Challenge API ============
+
+export interface ChallengeInfo {
+  valid: boolean;
+  challenge_id?: string;
+  challenge_title?: string;
+  description?: string;
+  difficulty?: string;
+  category?: string;
+  tags?: string[];
+  budget_total_seconds?: number;
+  budget_used_seconds?: number;
+  budget_remaining_seconds?: number;
+  submission_count?: number;
+  allowed_backends?: string[];
+  deadline?: string;
+  starter_code?: string;
+  display_name?: string | null;
+  method_name?: string | null;
+  participant_label?: string;
+  error?: string;
+}
+
+export interface ChallengePublicInfo {
+  id: string;
+  title: string;
+  description?: string;
+  difficulty: string;
+  category?: string;
+  tags?: string[];
+  is_active: boolean;
+  deadline?: string;
+  total_participants?: number;
+  top_score?: number | null;
+}
+
+export interface ChallengeListResult {
+  challenges: ChallengePublicInfo[];
+  total: number;
+}
+
+export interface ChallengeSubmissionResult {
+  id: string;
+  challenge_id: string;
+  status: string;
+  queue_position?: number | null;
+  backend_name: string;
+  shots: number;
+  ibmq_job_id?: string | null;
+  score?: number | null;
+  measurements?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_seconds?: number | null;
+  code?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface ChallengeSubmissionList {
+  submissions: ChallengeSubmissionResult[];
+  total: number;
+}
+
+export interface ChallengeQueueEntry {
+  id: string;
+  participant_label: string;
+  position: number;
+  backend: string;
+  submitted_at: string;
+}
+
+export interface ChallengeRunningEntry {
+  id: string;
+  participant_label: string;
+  backend: string;
+  started_at?: string | null;
+}
+
+export interface ChallengeMyQueueEntry {
+  id: string;
+  position?: number | null;
+  status: string;
+}
+
+export interface ChallengeQueueStatus {
+  queue: ChallengeQueueEntry[];
+  running: ChallengeRunningEntry[];
+  my_submissions: ChallengeMyQueueEntry[];
+  total_queued: number;
+  total_running: number;
+  estimated_wait_minutes: number;
+}
+
+export interface ChallengeLeaderboardEntryType {
+  rank: number;
+  submission_id: string;
+  participant_label: string;
+  display_name?: string | null;
+  method_name?: string | null;
+  score: number;
+  submitted_at?: string | null;
+  backend_name?: string | null;
+}
+
+export interface ChallengeLeaderboard {
+  challenge_id: string;
+  challenge_title: string;
+  leaderboard: ChallengeLeaderboardEntryType[];
+  total_participants: number;
+  updated_at: string;
+}
+
+export interface GlobalProgrammerEntry {
+  rank: number;
+  participant_label: string;
+  display_name?: string | null;
+  total_score: number;
+  challenges_solved: number;
+}
+
+export interface GlobalProgrammerLeaderboard {
+  leaderboard: GlobalProgrammerEntry[];
+  total_participants: number;
+  updated_at: string;
+}
+
+export interface GlobalHardwareEntry {
+  rank: number;
+  backend_name: string;
+  avg_score: number;
+  total_jobs: number;
+  unique_participants: number;
+}
+
+export interface GlobalHardwareLeaderboard {
+  leaderboard: GlobalHardwareEntry[];
+  total_backends: number;
+  updated_at: string;
+}
+
+export interface ChallengeSimulateResult {
+  success: boolean;
+  error?: string;
+  score?: number | null;
+  measurements?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_ms?: number | null;
+  backend: string;
+}
+
+export interface ChallengePublicDetail {
+  id: string;
+  title: string;
+  description?: string;
+  difficulty?: string;
+  category?: string;
+  tags?: string[];
+  deadline?: string;
+  starter_code?: string;
+  allowed_backends: string[];
+  default_shots: number;
+  is_active: boolean;
+}
+
+export interface AdminChallengeSubmission {
+  id: string;
+  challenge_id: string;
+  token_id: string;
+  status: string;
+  queue_position?: number | null;
+  backend_name: string;
+  shots: number;
+  ibmq_job_id?: string | null;
+  score?: number | null;
+  measurements?: Record<string, number> | null;
+  qubit_count?: number | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  execution_time_seconds?: number | null;
+  error_message?: string | null;
+  code?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  participant_uid_hash: string;
+  display_name?: string | null;
+  method_name?: string | null;
+  participant_label: string;
+}
+
+export interface AdminChallengeSubmissionList {
+  submissions: AdminChallengeSubmission[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ChallengeTokenAdmin {
+  id: string;
+  participant_uid_hash: string;
+  participant_uid_raw?: string | null;
+  display_name?: string | null;
+  token?: string | null;
+  budget_used_seconds: number;
+  budget_limit_seconds: number;
+  is_active: boolean;
+  submission_count: number;
+  last_used_at?: string | null;
+  created_at: string;
+}
+
+export interface ChallengeBudgetSummary {
+  challenge_id: string;
+  challenge_title: string;
+  total_budget_seconds: number;
+  total_used_seconds: number;
+  total_remaining_seconds: number;
+  num_participants: number;
+  num_active_tokens: number;
+  participants: ChallengeTokenAdmin[];
+}
+
+export interface ChallengeListItem {
+  id: string;
+  title: string;
+  difficulty: string;
+  category?: string;
+  is_active: boolean;
+  created_at?: string;
+  deadline?: string | null;
+  num_tokens: number;
+  num_submissions: number;
+}
+
+export const challengeApi = {
+  // Public
+  list: (options?: { limit?: number; offset?: number }) => {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<ChallengeListResult>(`/challenge/list${query}`);
+  },
+
+  search: (q: string) =>
+    apiRequest<ChallengeListResult>(`/challenge/search?q=${encodeURIComponent(q)}`),
+
+  getInfo: (challengeId: string) =>
+    apiRequest<ChallengePublicDetail>(`/challenge/info/${challengeId}`),
+
+  verifyToken: (token: string) =>
+    apiRequest<ChallengeInfo>('/challenge/verify-token', {
+      method: 'POST',
+      body: { token },
+    }),
+
+  updateProfile: (data: { token: string; display_name?: string; method_name?: string }) =>
+    apiRequest<{ display_name?: string | null; method_name?: string | null }>('/challenge/update-profile', {
+      method: 'POST',
+      body: data,
+    }),
+
+  submit: (data: { token: string; code: string; backend: string; shots?: number }) =>
+    apiRequest<ChallengeSubmissionResult>('/challenge/submit', {
+      method: 'POST',
+      body: data,
+    }),
+
+  getStatus: (submissionId: string) =>
+    apiRequest<ChallengeSubmissionResult>(`/challenge/status/${submissionId}`),
+
+  getSubmissions: (token: string, challengeId: string) =>
+    apiRequest<ChallengeSubmissionList>(
+      `/challenge/submissions?token=${encodeURIComponent(token)}&challenge_id=${encodeURIComponent(challengeId)}`
+    ),
+
+  getQueueStatus: (challengeId: string, token?: string) => {
+    const params = token ? `?token=${encodeURIComponent(token)}` : '';
+    return apiRequest<ChallengeQueueStatus>(`/challenge/queue/${challengeId}${params}`);
+  },
+
+  getLeaderboard: (challengeId: string) =>
+    apiRequest<ChallengeLeaderboard>(`/challenge/leaderboard/${challengeId}`),
+
+  getGlobalLeaderboard: (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : '';
+    return apiRequest<GlobalProgrammerLeaderboard>(`/challenge/global-leaderboard${params}`);
+  },
+
+  getGlobalHardwareRanking: (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : '';
+    return apiRequest<GlobalHardwareLeaderboard>(`/challenge/global-hardware-ranking${params}`);
+  },
+
+  simulate: (data: { challenge_id: string; code: string; shots?: number; single_qubit_error?: number; two_qubit_error?: number }) =>
+    apiRequest<ChallengeSimulateResult>('/challenge/simulate', {
+      method: 'POST',
+      body: data,
+    }),
+
+  // Admin
+  create: (data: {
+    title: string;
+    description?: string;
+    difficulty?: string;
+    category?: string;
+    tags?: string[];
+    ibmq_api_key: string;
+    allowed_backends: string[];
+    evaluate_code: string;
+    total_budget_seconds?: number;
+    num_participants?: number;
+    max_concurrent_jobs?: number;
+    deadline?: string;
+    reference_circuit?: string;
+    starter_code?: string;
+  }) =>
+    apiRequest<{ id: string; title: string; per_participant_budget_seconds: number; max_concurrent_jobs: number }>('/challenge/admin/create', {
+      method: 'POST',
+      body: data,
+      requireAuth: true,
+    }),
+
+  update: (challengeId: string, data: Record<string, unknown>) =>
+    apiRequest(`/challenge/admin/${challengeId}`, {
+      method: 'PUT',
+      body: data,
+      requireAuth: true,
+    }),
+
+  generateTokens: (challengeId: string, participants: Array<{ uid: string; display_name?: string }>) =>
+    apiRequest<{ tokens: Array<{ participant_uid: string; display_name?: string | null; token: string }>; count: number }>(
+      `/challenge/admin/${challengeId}/tokens`,
+      { method: 'POST', body: { participants }, requireAuth: true }
+    ),
+
+  getBudgets: (challengeId: string) =>
+    apiRequest<ChallengeBudgetSummary>(
+      `/challenge/admin/${challengeId}/budget`,
+      { requireAuth: true }
+    ),
+
+  getAdminSubmissions: (challengeId: string, options?: { page?: number; page_size?: number; status?: string }) => {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.page_size) params.append('page_size', options.page_size.toString());
+    if (options?.status) params.append('status', options.status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<AdminChallengeSubmissionList>(
+      `/challenge/admin/${challengeId}/submissions${query}`,
+      { requireAuth: true }
+    );
+  },
+
+  getAdminSubmission: (submissionId: string) =>
+    apiRequest<AdminChallengeSubmission>(
+      `/challenge/admin/submission/${submissionId}`,
+      { requireAuth: true }
+    ),
+
+  adminListChallenges: () =>
+    apiRequest<{ challenges: ChallengeListItem[]; total: number }>('/challenge/admin/list', {
+      requireAuth: true,
+    }),
+};

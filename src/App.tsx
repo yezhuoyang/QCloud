@@ -28,6 +28,12 @@ import AdminHomeworkPage from './pages/AdminHomeworkPage'
 import HardwareRankingPage from './pages/HardwareRankingPage'
 import HomeworkQueuePage from './pages/HomeworkQueuePage'
 import HomeworkJobHistoryPage from './pages/HomeworkJobHistoryPage'
+import ChallengePage from './pages/ChallengePage'
+import ChallengeResultPage from './pages/ChallengeResultPage'
+import ChallengeLeaderboardPage from './pages/ChallengeLeaderboardPage'
+import ChallengeQueuePage from './pages/ChallengeQueuePage'
+import ChallengeJobHistoryPage from './pages/ChallengeJobHistoryPage'
+import AdminChallengePage from './pages/AdminChallengePage'
 
 function App() {
   return (
@@ -62,6 +68,13 @@ function App() {
         <Route path="/homework/:homeworkId/job-history" element={<HomeworkJobHistoryPage />} />
         <Route path="/admin/homework" element={<AdminHomeworkPage />} />
         <Route path="/admin/homework/:homeworkId" element={<AdminHomeworkPage />} />
+        <Route path="/challenge/:challengeId" element={<ChallengePage />} />
+        <Route path="/challenge/:challengeId/results/:submissionId" element={<ChallengeResultPage />} />
+        <Route path="/challenge/:challengeId/leaderboard" element={<ChallengeLeaderboardPage />} />
+        <Route path="/challenge/:challengeId/queue" element={<ChallengeQueuePage />} />
+        <Route path="/challenge/:challengeId/job-history" element={<ChallengeJobHistoryPage />} />
+        <Route path="/admin/challenges" element={<AdminChallengePage />} />
+        <Route path="/admin/challenges/:challengeId" element={<AdminChallengePage />} />
       </Routes>
     </AuthProvider>
   )
