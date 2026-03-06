@@ -29,6 +29,7 @@ class HomeworkTokenVerifyResponse(BaseModel):
     reference_circuit: Optional[str] = None
     display_name: Optional[str] = None
     method_name: Optional[str] = None
+    student_label: Optional[str] = None
     error: Optional[str] = None
 
 

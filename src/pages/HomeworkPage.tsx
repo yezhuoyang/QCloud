@@ -724,7 +724,7 @@ qc.measure_all()
           {homeworkId && (
             <>
               <Link
-                to={`/homework/${homeworkId}/leaderboard`}
+                to={`/homework/${homeworkId}/leaderboard${token ? `?token=${encodeURIComponent(token)}` : ''}`}
                 className="px-3 py-1 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
               >
                 Leaderboard

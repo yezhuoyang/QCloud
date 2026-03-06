@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
+import CodeEditor from '../components/CodeEditor'
 import { homeworkApi, type HomeworkSubmissionResult, type FakeHardwareSubmissionDetail } from '../utils/api'
 
 function downloadMeasurements(
@@ -58,6 +59,7 @@ function HomeworkJobHistoryPage() {
   const [fakeJobs, setFakeJobs] = useState<FakeHardwareSubmissionDetail[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) {
@@ -140,8 +142,8 @@ function HomeworkJobHistoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {hwJobs.map((job) => (
-                        <tr key={job.id} className="border-b border-qcloud-border hover:bg-qcloud-bg/30 transition-colors">
+                      {hwJobs.map((job) => (<React.Fragment key={job.id}>
+                        <tr className="border-b border-qcloud-border hover:bg-qcloud-bg/30 transition-colors">
                           <td className="px-3 py-2 text-xs text-qcloud-muted">
                             {new Date(job.created_at).toLocaleString()}
                           </td>
@@ -172,13 +174,22 @@ function HomeworkJobHistoryPage() {
                           <td className="px-3 py-2 text-right">
                             <div className="flex items-center justify-end gap-1">
                               {job.code && (
-                                <button
-                                  onClick={() => handleLoadCircuit(job.code!)}
-                                  className="text-[10px] px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
-                                  title="Load this circuit into the editor"
-                                >
-                                  Load
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => setExpandedId(expandedId === job.id ? null : job.id)}
+                                    className={`text-[10px] px-2 py-1 rounded transition-colors ${expandedId === job.id ? 'bg-purple-200 text-purple-800' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'}`}
+                                    title="View submitted code"
+                                  >
+                                    Code
+                                  </button>
+                                  <button
+                                    onClick={() => handleLoadCircuit(job.code!)}
+                                    className="text-[10px] px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+                                    title="Load this circuit into the editor"
+                                  >
+                                    Load
+                                  </button>
+                                </>
                               )}
                               {job.measurements_after && Object.keys(job.measurements_after).length > 0 && (
                                 <button
@@ -197,7 +208,16 @@ function HomeworkJobHistoryPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        {expandedId === job.id && job.code && (
+                          <tr>
+                            <td colSpan={8} className="px-3 py-3 bg-gray-50">
+                              <div className="h-48 border rounded overflow-hidden">
+                                <CodeEditor value={job.code} onChange={() => {}} />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>))}
                     </tbody>
                   </table>
                 </div>
@@ -228,8 +248,8 @@ function HomeworkJobHistoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {fakeJobs.map((job) => (
-                        <tr key={job.id} className="border-b border-qcloud-border hover:bg-orange-50/30 transition-colors">
+                      {fakeJobs.map((job) => (<React.Fragment key={job.id}>
+                        <tr className="border-b border-qcloud-border hover:bg-orange-50/30 transition-colors">
                           <td className="px-3 py-2 text-xs text-qcloud-muted">
                             {new Date(job.created_at).toLocaleString()}
                           </td>
@@ -255,6 +275,13 @@ function HomeworkJobHistoryPage() {
                           <td className="px-3 py-2 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button
+                                onClick={() => setExpandedId(expandedId === job.id ? null : job.id)}
+                                className={`text-[10px] px-2 py-1 rounded transition-colors ${expandedId === job.id ? 'bg-purple-200 text-purple-800' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'}`}
+                                title="View submitted code"
+                              >
+                                Code
+                              </button>
+                              <button
                                 onClick={() => handleLoadCircuit(job.code)}
                                 className="text-[10px] px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
                                 title="Load this circuit into the editor"
@@ -278,7 +305,23 @@ function HomeworkJobHistoryPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        {expandedId === job.id && (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-3 bg-orange-50/50">
+                              <div className="space-y-2">
+                                {job.initial_layout && (
+                                  <div className="text-xs text-qcloud-muted">
+                                    <span className="font-medium">INITIAL_LAYOUT:</span> [{job.initial_layout.join(', ')}]
+                                  </div>
+                                )}
+                                <div className="h-48 border rounded overflow-hidden">
+                                  <CodeEditor value={job.code} onChange={() => {}} />
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>))}
                     </tbody>
                   </table>
                 </div>

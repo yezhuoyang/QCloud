@@ -137,6 +137,7 @@ async def verify_token(
         reference_circuit=homework.reference_circuit,
         display_name=token_record.display_name,
         method_name=token_record.method_name,
+        student_label=get_student_label(token_record),
     )
 
 
@@ -1013,6 +1014,59 @@ async def admin_delete_submission(
     return {"message": "Submission deleted", "id": submission_id}
 
 
+@router.get("/admin/submission/{submission_id}", response_model=AdminSubmissionResponse)
+async def admin_get_single_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get a single submission with full details (admin only)."""
+    result = (
+        db.query(HomeworkSubmission, HomeworkToken)
+        .join(HomeworkToken, HomeworkSubmission.token_id == HomeworkToken.id)
+        .filter(HomeworkSubmission.id == submission_id)
+        .first()
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    sub, token = result
+    return AdminSubmissionResponse(
+        id=sub.id,
+        homework_id=sub.homework_id,
+        token_id=sub.token_id,
+        status=sub.status,
+        queue_position=sub.queue_position,
+        backend_name=sub.backend_name,
+        shots=sub.shots,
+        ibmq_job_id_before=sub.ibmq_job_id_before,
+        ibmq_job_id_after=sub.ibmq_job_id_after,
+        fidelity_before=sub.fidelity_before,
+        fidelity_after=sub.fidelity_after,
+        fidelity_improvement=sub.fidelity_improvement,
+        score=sub.score,
+        measurements_before=json.loads(sub.measurements_before) if sub.measurements_before else None,
+        measurements_after=json.loads(sub.measurements_after) if sub.measurements_after else None,
+        qubit_count=sub.qubit_count,
+        gate_count=sub.gate_count,
+        circuit_depth=sub.circuit_depth,
+        execution_time_seconds=sub.execution_time_seconds,
+        success_probability=sub.success_probability,
+        post_selected_shots=sub.post_selected_shots,
+        eval_method=sub.eval_method or "legacy",
+        tomography_correlators=json.loads(sub.tomography_correlators) if sub.tomography_correlators else None,
+        error_message=sub.error_message,
+        code_before=sub.code_before,
+        code_after=sub.code_after,
+        created_at=sub.created_at,
+        started_at=sub.started_at,
+        completed_at=sub.completed_at,
+        student_uid_hash=token.student_uid,
+        display_name=token.display_name,
+        method_name=token.method_name,
+        student_label=get_student_label(token),
+    )
+
+
 @router.post("/admin/{homework_id}/submit", response_model=HomeworkSubmissionResponse)
 async def admin_direct_submit(
     homework_id: str,
@@ -1257,6 +1311,66 @@ async def get_fake_hardware_submissions(
         ))
 
     return FakeHardwareSubmissionListResponse(submissions=submissions, total=len(submissions))
+
+
+def _format_fake_hw_submission(s):
+    """Helper to format a FakeHardwareSubmission into FakeHardwareSubmissionDetail."""
+    return FakeHardwareSubmissionDetail(
+        id=s.id,
+        homework_id=s.homework_id,
+        code=s.code,
+        shots=s.shots,
+        eval_method=s.eval_method or "inverse_bell",
+        initial_layout=json.loads(s.initial_layout) if s.initial_layout else None,
+        measurements=json.loads(s.measurements) if s.measurements else None,
+        fidelity_after=s.fidelity_after,
+        success_probability=s.success_probability,
+        post_selected_shots=s.post_selected_shots,
+        tomography_correlators=json.loads(s.tomography_correlators) if s.tomography_correlators else None,
+        qubit_count=s.qubit_count,
+        gate_count=s.gate_count,
+        circuit_depth=s.circuit_depth,
+        status=s.status or "completed",
+        error_message=s.error_message,
+        created_at=s.created_at,
+    )
+
+
+@router.get("/fake-hardware/submission/{submission_id}", response_model=FakeHardwareSubmissionDetail)
+async def get_single_fake_hardware_submission(
+    submission_id: str,
+    token: str = Query(..., description="Student's homework token"),
+    db: Session = Depends(get_db),
+):
+    """Get a single fake hardware submission (student, validated by token)."""
+    token_record = verify_homework_token(db, token)
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    s = db.query(FakeHardwareSubmission).filter(
+        FakeHardwareSubmission.id == submission_id,
+        FakeHardwareSubmission.token_id == token_record.id,
+    ).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    return _format_fake_hw_submission(s)
+
+
+@router.get("/admin/fake-hardware-submission/{submission_id}", response_model=FakeHardwareSubmissionDetail)
+async def admin_get_single_fake_hardware_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get any fake hardware submission (admin only)."""
+    s = db.query(FakeHardwareSubmission).filter(
+        FakeHardwareSubmission.id == submission_id,
+    ).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Fake hardware submission not found")
+
+    return _format_fake_hw_submission(s)
 
 
 @router.get("/fake-hardware/leaderboard/{homework_id}", response_model=FakeHardwareLeaderboardResponse)

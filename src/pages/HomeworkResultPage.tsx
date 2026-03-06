@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import Logo from '../components/Logo'
+import CodeEditor from '../components/CodeEditor'
 import { homeworkApi, type HomeworkSubmissionResult } from '../utils/api'
 
 function HomeworkResultPage() {
@@ -311,6 +312,16 @@ function HomeworkResultPage() {
                         </div>
                       )
                     })}
+                </div>
+              </div>
+            )}
+
+            {/* Submitted Code */}
+            {submission.code && (
+              <div className="bg-white rounded-xl border border-qcloud-border p-6">
+                <h3 className="font-semibold text-qcloud-text mb-4">Your Submitted Code</h3>
+                <div className="h-64 border rounded overflow-hidden">
+                  <CodeEditor value={submission.code} onChange={() => {}} />
                 </div>
               </div>
             )}

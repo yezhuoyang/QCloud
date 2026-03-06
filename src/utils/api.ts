@@ -993,6 +993,7 @@ export interface HomeworkInfo {
   reference_circuit?: string;
   display_name?: string | null;
   method_name?: string | null;
+  student_label?: string;
   error?: string;
 }
 
@@ -1431,6 +1432,11 @@ export const homeworkApi = {
       `/homework/fake-hardware/submissions?token=${encodeURIComponent(token)}`
     ),
 
+  getFakeHardwareSubmission: (submissionId: string, token: string) =>
+    apiRequest<FakeHardwareSubmissionDetail>(
+      `/homework/fake-hardware/submission/${submissionId}?token=${encodeURIComponent(token)}`
+    ),
+
   // ---- Admin endpoints ----
 
   /**
@@ -1541,6 +1547,18 @@ export const homeworkApi = {
     apiRequest<{ message: string; id: string }>(
       `/homework/admin/submissions/${submissionId}`,
       { method: 'DELETE', requireAuth: true }
+    ),
+
+  getAdminSubmission: (submissionId: string) =>
+    apiRequest<AdminSubmission>(
+      `/homework/admin/submission/${submissionId}`,
+      { requireAuth: true }
+    ),
+
+  getAdminFakeHardwareSubmission: (submissionId: string) =>
+    apiRequest<FakeHardwareSubmissionDetail>(
+      `/homework/admin/fake-hardware-submission/${submissionId}`,
+      { requireAuth: true }
     ),
 
   /**
