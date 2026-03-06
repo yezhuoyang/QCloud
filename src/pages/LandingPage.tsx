@@ -98,65 +98,220 @@ function LandingPage() {
         </p>
 
         {/* Workflow Diagram */}
-        <div className="mt-10 max-w-5xl mx-auto flex items-center justify-center gap-0">
-          {/* Left: Code + QEC */}
-          <div className="flex flex-col items-center gap-3 min-w-[140px]">
-            {/* Code icon */}
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+        <div className="mt-10 max-w-6xl mx-auto flex items-center justify-center gap-0">
+
+          {/* Left: Quantum Circuit Code */}
+          <div className="flex flex-col items-center gap-2 min-w-[120px]">
+            <div className="bg-white rounded-xl border-2 border-blue-200 p-3 shadow-lg w-[110px]">
+              {/* Mini circuit diagram */}
+              <svg viewBox="0 0 100 70" className="w-full">
+                {/* Qubit lines */}
+                <line x1="5" y1="15" x2="95" y2="15" stroke="#3b82f6" strokeWidth="1.5" />
+                <line x1="5" y1="35" x2="95" y2="35" stroke="#3b82f6" strokeWidth="1.5" />
+                <line x1="5" y1="55" x2="95" y2="55" stroke="#3b82f6" strokeWidth="1.5" />
+                {/* |0⟩ labels */}
+                <text x="2" y="18" fontSize="7" fill="#6366f1" fontFamily="monospace">|0⟩</text>
+                <text x="2" y="38" fontSize="7" fill="#6366f1" fontFamily="monospace">|0⟩</text>
+                <text x="2" y="58" fontSize="7" fill="#6366f1" fontFamily="monospace">|0⟩</text>
+                {/* H gate */}
+                <rect x="22" y="7" width="14" height="16" rx="2" fill="#6366f1" />
+                <text x="25" y="18" fontSize="9" fill="white" fontWeight="bold">H</text>
+                {/* CNOT */}
+                <circle cx="50" cy="15" r="4" fill="#6366f1" />
+                <line x1="50" y1="19" x2="50" y2="35" stroke="#6366f1" strokeWidth="1.5" />
+                <circle cx="50" cy="35" r="5" fill="none" stroke="#6366f1" strokeWidth="1.5" />
+                <line x1="46" y1="35" x2="54" y2="35" stroke="#6366f1" strokeWidth="1.5" />
+                <line x1="50" y1="31" x2="50" y2="39" stroke="#6366f1" strokeWidth="1.5" />
+                {/* Rz gate */}
+                <rect x="62" y="27" width="14" height="16" rx="2" fill="#8b5cf6" />
+                <text x="63" y="38" fontSize="7" fill="white" fontWeight="bold">Rz</text>
+                {/* CNOT 2 */}
+                <circle cx="82" cy="35" r="4" fill="#6366f1" />
+                <line x1="82" y1="39" x2="82" y2="55" stroke="#6366f1" strokeWidth="1.5" />
+                <circle cx="82" cy="55" r="5" fill="none" stroke="#6366f1" strokeWidth="1.5" />
+                <line x1="78" y1="55" x2="86" y2="55" stroke="#6366f1" strokeWidth="1.5" />
+                <line x1="82" y1="51" x2="82" y2="59" stroke="#6366f1" strokeWidth="1.5" />
               </svg>
             </div>
             <div className="text-sm font-semibold text-qcloud-text">Quantum Circuit</div>
-            <div className="text-xs text-qcloud-muted">+ QEC Code</div>
+          </div>
+
+          {/* Plus sign */}
+          <div className="flex-shrink-0 px-2 text-2xl font-bold text-qcloud-muted">+</div>
+
+          {/* Surface Code QEC */}
+          <div className="flex flex-col items-center gap-2 min-w-[120px]">
+            <div className="bg-white rounded-xl border-2 border-emerald-200 p-3 shadow-lg w-[110px]">
+              {/* Surface code lattice */}
+              <svg viewBox="0 0 100 100" className="w-full">
+                {/* Z stabilizers (green) */}
+                <rect x="5" y="5" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="45" y="5" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="25" y="25" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="65" y="25" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="5" y="45" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="45" y="45" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="25" y="65" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                <rect x="65" y="65" width="20" height="20" rx="2" fill="#86efac" opacity="0.7" />
+                {/* X stabilizers (pink) */}
+                <rect x="25" y="5" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="65" y="5" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="5" y="25" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="45" y="25" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="25" y="45" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="65" y="45" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="5" y="65" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                <rect x="45" y="65" width="20" height="20" rx="2" fill="#fca5a5" opacity="0.7" />
+                {/* Data qubits (white circles on vertices) */}
+                {[5,25,45,65,85].map(x => [5,25,45,65,85].map(y => (
+                  <circle key={`d${x}-${y}`} cx={x} cy={y} r="4" fill="white" stroke="#374151" strokeWidth="1.2" />
+                )))}
+                {/* Syndrome qubits (dark circles in centers) */}
+                {[15,35,55,75].map(x => [15,35,55,75].map(y => (
+                  <circle key={`s${x}-${y}`} cx={x} cy={y} r="3" fill="#4b5563" />
+                )))}
+              </svg>
+            </div>
+            <div className="text-sm font-semibold text-qcloud-text">QEC Code</div>
           </div>
 
           {/* Arrow 1 */}
-          <div className="flex-shrink-0 px-2 md:px-4">
-            <svg className="w-16 h-8 text-qcloud-primary" viewBox="0 0 80 24" fill="none">
+          <div className="flex-shrink-0 px-1 md:px-3">
+            <svg className="w-12 md:w-16 h-8 text-qcloud-primary" viewBox="0 0 80 24" fill="none">
               <path d="M0 12h65" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
               <path d="M60 4l12 8-12 8" fill="currentColor" />
             </svg>
           </div>
 
           {/* Center: Platform */}
-          <div className="flex flex-col items-center gap-2 min-w-[140px]">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-qcloud-primary to-qcloud-secondary p-[3px] shadow-xl">
-                <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                  <Logo size="medium" />
-                </div>
+          <div className="flex flex-col items-center gap-2 min-w-[100px]">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-qcloud-primary to-qcloud-secondary p-[3px] shadow-xl">
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                <Logo size="medium" />
               </div>
             </div>
             <div className="text-sm font-bold text-qcloud-primary">QuantumArena</div>
-            <div className="text-xs text-qcloud-muted">Evaluation Platform</div>
           </div>
 
           {/* Arrow 2 */}
-          <div className="flex-shrink-0 px-2 md:px-4">
-            <svg className="w-16 h-8 text-purple-500" viewBox="0 0 80 24" fill="none">
+          <div className="flex-shrink-0 px-1 md:px-3">
+            <svg className="w-12 md:w-16 h-8 text-purple-500" viewBox="0 0 80 24" fill="none">
               <path d="M0 12h65" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
               <path d="M60 4l12 8-12 8" fill="currentColor" />
             </svg>
           </div>
 
-          {/* Right: Hardware Providers */}
-          <div className="flex flex-col items-center gap-2 min-w-[160px]">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center shadow-md">
-                <span className="text-white text-xs font-bold">IBM</span>
+          {/* Right: Quantum Hardware */}
+          <div className="flex items-center gap-3">
+            {/* Cartoon Dilution Refrigerator */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-xl p-2 shadow-xl w-[100px]">
+                <svg viewBox="0 0 80 110" className="w-full">
+                  {/* Top plate */}
+                  <ellipse cx="40" cy="8" rx="32" ry="5" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  <rect x="8" y="5" width="64" height="6" fill="#c9975c" />
+                  <ellipse cx="40" cy="11" rx="32" ry="5" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  {/* Wiring between plates */}
+                  <path d="M15 11 Q10 22 18 30" stroke="#d4a574" strokeWidth="1" fill="none" />
+                  <path d="M25 11 Q18 22 23 30" stroke="#d4a574" strokeWidth="1" fill="none" />
+                  <path d="M35 11 Q30 22 33 30" stroke="#c9975c" strokeWidth="1" fill="none" />
+                  <path d="M45 11 Q50 22 47 30" stroke="#c9975c" strokeWidth="1" fill="none" />
+                  <path d="M55 11 Q62 22 57 30" stroke="#d4a574" strokeWidth="1" fill="none" />
+                  <path d="M65 11 Q70 22 62 30" stroke="#d4a574" strokeWidth="1" fill="none" />
+                  {/* Second plate */}
+                  <ellipse cx="40" cy="30" rx="28" ry="4" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  <rect x="12" y="28" width="56" height="5" fill="#c9975c" />
+                  <ellipse cx="40" cy="33" rx="28" ry="4" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  {/* Wiring 2 */}
+                  <path d="M18 33 Q14 42 20 50" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  <path d="M28 33 Q24 42 27 50" stroke="#c9975c" strokeWidth="0.8" fill="none" />
+                  <path d="M40 33 Q40 42 40 50" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  <path d="M52 33 Q56 42 53 50" stroke="#c9975c" strokeWidth="0.8" fill="none" />
+                  <path d="M62 33 Q66 42 60 50" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  {/* Third plate */}
+                  <ellipse cx="40" cy="50" rx="24" ry="4" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  <rect x="16" y="48" width="48" height="5" fill="#c9975c" />
+                  <ellipse cx="40" cy="53" rx="24" ry="4" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  {/* Wiring 3 */}
+                  <path d="M22 53 Q20 62 24 68" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  <path d="M32 53 Q30 62 32 68" stroke="#c9975c" strokeWidth="0.8" fill="none" />
+                  <path d="M48 53 Q50 62 48 68" stroke="#c9975c" strokeWidth="0.8" fill="none" />
+                  <path d="M58 53 Q60 62 56 68" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  {/* Bottom plate (coldest) */}
+                  <ellipse cx="40" cy="68" rx="20" ry="3.5" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  <rect x="20" y="66" width="40" height="5" fill="#c9975c" />
+                  <ellipse cx="40" cy="71" rx="20" ry="3.5" fill="#d4a574" stroke="#b8860b" strokeWidth="0.8" />
+                  {/* Chip at bottom - glowing */}
+                  <path d="M32 71 Q30 80 34 85" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  <path d="M40 71 Q40 80 40 85" stroke="#c9975c" strokeWidth="0.8" fill="none" />
+                  <path d="M48 71 Q50 80 46 85" stroke="#d4a574" strokeWidth="0.8" fill="none" />
+                  <rect x="30" y="85" width="20" height="12" rx="2" fill="#1e1b4b" stroke="#6366f1" strokeWidth="1" />
+                  {/* Chip glow */}
+                  <rect x="33" y="88" width="14" height="6" rx="1" fill="#6366f1" opacity="0.4" />
+                  <circle cx="40" cy="91" r="2" fill="#818cf8" opacity="0.8" />
+                  {/* Label */}
+                  <text x="40" y="106" textAnchor="middle" fontSize="6" fill="#9ca3af" fontWeight="bold">QPU</text>
+                </svg>
               </div>
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-md">
-                <span className="text-white text-xs font-bold">IonQ</span>
-              </div>
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-md">
-                <span className="text-white text-xs font-bold">QuEra</span>
-              </div>
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md">
-                <span className="text-white text-xs font-bold">Rigetti</span>
-              </div>
+              <div className="text-xs font-semibold text-qcloud-text">Quantum Computer</div>
             </div>
-            <div className="text-sm font-semibold text-qcloud-text">Quantum Hardware</div>
+
+            {/* Qubit Layout / Topology */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="bg-white rounded-xl border-2 border-indigo-200 p-2 shadow-lg w-[100px]">
+                {/* Heavy-hex topology */}
+                <svg viewBox="0 0 90 90" className="w-full">
+                  {/* Connections (edges) */}
+                  {/* Row 1 horizontal */}
+                  <line x1="15" y1="10" x2="35" y2="10" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="35" y1="10" x2="55" y2="10" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="10" x2="75" y2="10" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Vertical from row 1 */}
+                  <line x1="15" y1="10" x2="15" y2="30" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="10" x2="55" y2="30" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Row 2 horizontal */}
+                  <line x1="15" y1="30" x2="35" y2="30" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="35" y1="30" x2="55" y2="30" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="30" x2="75" y2="30" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Vertical from row 2 */}
+                  <line x1="35" y1="30" x2="35" y2="50" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="75" y1="30" x2="75" y2="50" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Row 3 horizontal */}
+                  <line x1="15" y1="50" x2="35" y2="50" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="35" y1="50" x2="55" y2="50" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="50" x2="75" y2="50" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Vertical from row 3 */}
+                  <line x1="15" y1="50" x2="15" y2="70" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="50" x2="55" y2="70" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Row 4 horizontal */}
+                  <line x1="15" y1="70" x2="35" y2="70" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="35" y1="70" x2="55" y2="70" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="55" y1="70" x2="75" y2="70" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Vertical from row 4 */}
+                  <line x1="35" y1="70" x2="35" y2="85" stroke="#1e1b4b" strokeWidth="1.2" />
+                  <line x1="75" y1="70" x2="75" y2="85" stroke="#1e1b4b" strokeWidth="1.2" />
+                  {/* Qubits (dark blue dots) */}
+                  {[15,35,55,75].map(x => [10,30,50,70].map(y => (
+                    <circle key={`q${x}-${y}`} cx={x} cy={y} r="4" fill="#1e1b4b" />
+                  )))}
+                  {/* A few highlighted qubits (lighter) */}
+                  <circle cx="35" cy="10" r="4" fill="#6366f1" />
+                  <circle cx="55" cy="50" r="4" fill="#6366f1" />
+                  <circle cx="15" cy="70" r="4" fill="#6366f1" />
+                  {/* Bottom row partial */}
+                  <circle cx="35" cy="85" r="3.5" fill="#1e1b4b" />
+                  <circle cx="75" cy="85" r="3.5" fill="#1e1b4b" />
+                  {/* Provider labels */}
+                  <text x="45" y="8" textAnchor="middle" fontSize="5" fill="#6366f1" fontWeight="bold" opacity="0.6">IBM</text>
+                </svg>
+              </div>
+              <div className="flex flex-wrap justify-center gap-1 max-w-[100px]">
+                {['IBM', 'IonQ', 'QuEra', 'Rigetti'].map(name => (
+                  <span key={name} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">{name}</span>
+                ))}
+              </div>
+              <div className="text-xs font-semibold text-qcloud-text">Qubit Topology</div>
+            </div>
           </div>
         </div>
       </section>
