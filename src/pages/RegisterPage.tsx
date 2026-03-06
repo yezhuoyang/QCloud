@@ -66,7 +66,7 @@ function RegisterPage() {
             Create Account
           </h1>
           <p className="text-qcloud-muted mt-2">
-            Join QCloud and start quantum computing
+            Join QuantumArena and start quantum computing
           </p>
         </div>
 

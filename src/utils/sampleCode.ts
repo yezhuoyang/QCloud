@@ -1,4 +1,4 @@
-export const DEFAULT_QISKIT_CODE = `# QCloud - Quantum Circuit Definition
+export const DEFAULT_QISKIT_CODE = `# QuantumArena - Quantum Circuit Definition
 # Only define your quantum circuit here
 # Imports, simulation, and result processing are handled automatically
 

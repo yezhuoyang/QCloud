@@ -22,7 +22,7 @@ function AdminExampleEditorPage() {
     difficulty: 'Beginner',
     code: '',
     explanation: '',
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     tags: [] as string[],
     icon: '📝',
     is_active: true,

@@ -125,7 +125,7 @@ export const HARDWARE_PROVIDERS: HardwareProvider[] = [
   {
     id: 'noisy_simulator',
     name: 'Noisy Simulator',
-    company: 'QCloud',
+    company: 'QuantumArena',
     type: 'simulator',
     qubits: 30,
     status: 'online',
@@ -138,7 +138,7 @@ export const HARDWARE_PROVIDERS: HardwareProvider[] = [
   {
     id: 'fake_4x4',
     name: 'Fake 4x4 Grid',
-    company: 'QCloud',
+    company: 'QuantumArena',
     type: 'simulator',
     qubits: 16,
     status: 'online',

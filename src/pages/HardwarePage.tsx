@@ -76,7 +76,7 @@ function HardwarePage() {
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 hover:opacity-80">
               <Logo size="small" />
-              <span className="font-semibold text-lg text-qcloud-text">QCloud</span>
+              <span className="font-semibold text-lg text-qcloud-text">QuantumArena</span>
             </Link>
             <span className="text-qcloud-muted">/</span>
             <h1 className="font-semibold text-qcloud-text">Quantum Hardware</h1>

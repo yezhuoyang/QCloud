@@ -70,7 +70,7 @@ function LoginPage() {
           <p className="text-qcloud-muted mt-2">
             {isAdminMode
               ? 'Sign in with your admin account'
-              : 'Sign in to your QCloud account'
+              : 'Sign in to your QuantumArena account'
             }
           </p>
         </div>

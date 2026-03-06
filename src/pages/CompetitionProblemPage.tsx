@@ -168,7 +168,7 @@ function CompetitionProblemPage() {
           <div className="w-px h-6 bg-qcloud-border" />
           <Link to="/" className="flex items-center gap-2 hover:opacity-80">
             <Logo size="small" />
-            <span className="font-semibold text-lg text-qcloud-text">QCloud</span>
+            <span className="font-semibold text-lg text-qcloud-text">QuantumArena</span>
           </Link>
         </div>
         <div className="flex items-center gap-3">

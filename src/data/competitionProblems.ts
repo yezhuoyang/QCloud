@@ -215,7 +215,7 @@ def grover_circuit(oracle):
 
     return qc
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-01-15',
     tags: ['grover', 'search', 'oracle', 'beginner'],
     solveCount: 142,
@@ -320,7 +320,7 @@ def grover_multi_target(oracle):
     qc.measure([0, 1, 2], [0, 1, 2])
     return qc
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-01-20',
     tags: ['grover', 'search', 'multi-target', 'intermediate'],
     solveCount: 67,
@@ -416,7 +416,7 @@ def vqe_ansatz(params):
 # Optimal parameters (to be found via classical optimization)
 # Expected energy: -1.137 Hartree
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-01-25',
     tags: ['vqe', 'chemistry', 'optimization', 'variational'],
     solveCount: 45,
@@ -569,7 +569,7 @@ def bit_flip_code():
     qc.measure(0, 0)
     return qc
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-02-01',
     tags: ['error-correction', 'bit-flip', 'syndrome', 'advanced'],
     solveCount: 23,
@@ -685,7 +685,7 @@ def qaoa_maxcut(gamma, beta, edges):
 
     return qc
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-02-05',
     tags: ['qaoa', 'optimization', 'maxcut', 'variational'],
     solveCount: 31,
@@ -804,7 +804,7 @@ def qpe_circuit(n_ancilla=3):
 
     return qc
 `,
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     createdAt: '2024-02-10',
     tags: ['qpe', 'phase-estimation', 'qft', 'expert'],
     solveCount: 12,

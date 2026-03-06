@@ -89,7 +89,7 @@ function JobHistoryPage() {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Logo size="small" />
-              <span className="font-bold text-xl tracking-tight text-qcloud-text">QCloud</span>
+              <span className="font-bold text-xl tracking-tight text-qcloud-text">QuantumArena</span>
             </Link>
             <nav className="flex items-center gap-6">
               <Link to="/editor" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">

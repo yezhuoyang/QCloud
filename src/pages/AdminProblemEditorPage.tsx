@@ -30,7 +30,7 @@ function AdminProblemEditorPage() {
     hints: [] as string[],
     starter_code: '',
     solution_template: '',
-    author: 'QCloud Team',
+    author: 'QuantumArena Team',
     tags: [] as string[],
     max_score: 100,
     time_bonus: false,

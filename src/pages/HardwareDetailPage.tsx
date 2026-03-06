@@ -145,7 +145,7 @@ function HardwareDetailPage() {
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 hover:opacity-80">
               <Logo size="small" />
-              <span className="font-semibold text-lg text-qcloud-text">QCloud</span>
+              <span className="font-semibold text-lg text-qcloud-text">QuantumArena</span>
             </Link>
             <span className="text-qcloud-muted">/</span>
             <Link to="/hardware" className="text-qcloud-muted hover:text-qcloud-text">
@@ -386,7 +386,7 @@ function HardwareDetailPage() {
                     <h4 className="font-medium text-amber-800">Security Note</h4>
                     <p className="text-sm text-amber-700 mt-1">
                       Your credentials are stored locally in your browser and sent directly to {hardware.company}'s servers.
-                      QCloud does not store or have access to your API tokens.
+                      QuantumArena does not store or have access to your API tokens.
                     </p>
                   </div>
                 </div>
