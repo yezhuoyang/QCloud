@@ -49,25 +49,29 @@ function HomeworkLeaderboardPage() {
   }, [homeworkId, token])
 
   const isOwn = (entryLabel: string) => studentLabel && entryLabel === studentLabel
-  const canClick = (entryLabel: string) => isAdmin || isOwn(entryLabel)
+  // Anyone can click — admin is tried first, then student token. Backend enforces access control.
+  const canClick = isAdmin || !!studentLabel
 
-  async function handleEntryClick(submissionId: string, entryLabel: string, type: 'hw' | 'fake') {
-    if (!canClick(entryLabel)) return
+  async function handleEntryClick(submissionId: string, type: 'hw' | 'fake') {
+    if (!canClick) return
     if (expandedId === submissionId) { setExpandedId(null); return }
     setExpandedId(submissionId)
     setDetailData(null)
     setDetailLoading(true)
     try {
       if (type === 'hw') {
-        const data = isAdmin
-          ? await homeworkApi.getAdminSubmission(submissionId)
-          : await homeworkApi.getStatus(submissionId, token)
-        setDetailData(data)
+        // Try admin endpoint first, fall back to student endpoint
+        if (isAdmin) {
+          setDetailData(await homeworkApi.getAdminSubmission(submissionId))
+        } else {
+          setDetailData(await homeworkApi.getStatus(submissionId, token))
+        }
       } else {
-        const data = isAdmin
-          ? await homeworkApi.getAdminFakeHardwareSubmission(submissionId)
-          : await homeworkApi.getFakeHardwareSubmission(submissionId, token)
-        setDetailData(data)
+        if (isAdmin) {
+          setDetailData(await homeworkApi.getAdminFakeHardwareSubmission(submissionId))
+        } else {
+          setDetailData(await homeworkApi.getFakeHardwareSubmission(submissionId, token))
+        }
       }
     } catch {
       setDetailData(null)
@@ -201,11 +205,11 @@ function HomeworkLeaderboardPage() {
 
       <div className="max-w-[1600px] mx-auto p-6">
         {/* Hint about clicking */}
-        {(studentLabel || isAdmin) && (
+        {canClick && (
           <div className="mb-4 text-xs text-qcloud-muted bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             {isAdmin
               ? 'Admin: Click any row to view submitted code and details.'
-              : 'Click your own entry (highlighted) to view your submitted code and details.'}
+              : 'Click your own entry (highlighted in blue) to view your submitted code and details.'}
           </div>
         )}
 
@@ -251,15 +255,15 @@ function HomeworkLeaderboardPage() {
                   </thead>
                   <tbody>
                     {leaderboard?.leaderboard.map((entry: HomeworkLeaderboardEntryType) => {
-                      const clickable = canClick(entry.student_label)
                       const own = isOwn(entry.student_label)
+                      const rowClickable = isAdmin || own
                       return (
                         <React.Fragment key={entry.submission_id}>
                           <tr
-                            onClick={() => clickable && handleEntryClick(entry.submission_id, entry.student_label, 'hw')}
+                            onClick={() => rowClickable && handleEntryClick(entry.submission_id, 'hw')}
                             className={`border-b border-qcloud-border transition-colors ${
                               own ? 'bg-blue-50/50' : ''
-                            } ${clickable ? 'cursor-pointer hover:bg-blue-100/50' : 'hover:bg-qcloud-bg/30'} ${
+                            } ${rowClickable ? 'cursor-pointer hover:bg-blue-100/50' : 'hover:bg-qcloud-bg/30'} ${
                               expandedId === entry.submission_id ? 'bg-blue-100/70' : ''
                             }`}
                           >
@@ -364,15 +368,15 @@ function HomeworkLeaderboardPage() {
                   </thead>
                   <tbody>
                     {fakeLeaderboard?.entries.map((entry: FakeHardwareLeaderboardEntry) => {
-                      const clickable = canClick(entry.student_label)
                       const own = isOwn(entry.student_label)
+                      const rowClickable = isAdmin || own
                       return (
                         <React.Fragment key={`${entry.student_label}-${entry.rank}`}>
                           <tr
-                            onClick={() => clickable && handleEntryClick(entry.submission_id, entry.student_label, 'fake')}
+                            onClick={() => rowClickable && handleEntryClick(entry.submission_id, 'fake')}
                             className={`border-b border-qcloud-border transition-colors ${
                               own ? 'bg-blue-50/50' : ''
-                            } ${clickable ? 'cursor-pointer hover:bg-orange-100/50' : 'hover:bg-orange-50/30'} ${
+                            } ${rowClickable ? 'cursor-pointer hover:bg-orange-100/50' : 'hover:bg-orange-50/30'} ${
                               expandedId === entry.submission_id ? 'bg-orange-100/70' : ''
                             }`}
                           >
