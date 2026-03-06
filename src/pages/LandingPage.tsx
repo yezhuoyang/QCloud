@@ -89,14 +89,76 @@ function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="text-center pt-16 pb-8 px-4">
-        <Logo size="large" />
-        <h1 className="text-5xl font-bold mt-6 bg-gradient-to-r from-qcloud-primary to-qcloud-secondary bg-clip-text text-transparent">
+      <section className="text-center pt-12 pb-6 px-4">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-qcloud-primary to-qcloud-secondary bg-clip-text text-transparent">
           QuantumArena
         </h1>
         <p className="text-lg text-qcloud-muted mt-3 max-w-2xl mx-auto">
           Competition of quantum programmers and quantum hardware in the early fault-tolerant era
         </p>
+
+        {/* Workflow Diagram */}
+        <div className="mt-10 max-w-5xl mx-auto flex items-center justify-center gap-0">
+          {/* Left: Code + QEC */}
+          <div className="flex flex-col items-center gap-3 min-w-[140px]">
+            {/* Code icon */}
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+              </svg>
+            </div>
+            <div className="text-sm font-semibold text-qcloud-text">Quantum Circuit</div>
+            <div className="text-xs text-qcloud-muted">+ QEC Code</div>
+          </div>
+
+          {/* Arrow 1 */}
+          <div className="flex-shrink-0 px-2 md:px-4">
+            <svg className="w-16 h-8 text-qcloud-primary" viewBox="0 0 80 24" fill="none">
+              <path d="M0 12h65" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
+              <path d="M60 4l12 8-12 8" fill="currentColor" />
+            </svg>
+          </div>
+
+          {/* Center: Platform */}
+          <div className="flex flex-col items-center gap-2 min-w-[140px]">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-qcloud-primary to-qcloud-secondary p-[3px] shadow-xl">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                  <Logo size="medium" />
+                </div>
+              </div>
+            </div>
+            <div className="text-sm font-bold text-qcloud-primary">QuantumArena</div>
+            <div className="text-xs text-qcloud-muted">Evaluation Platform</div>
+          </div>
+
+          {/* Arrow 2 */}
+          <div className="flex-shrink-0 px-2 md:px-4">
+            <svg className="w-16 h-8 text-purple-500" viewBox="0 0 80 24" fill="none">
+              <path d="M0 12h65" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
+              <path d="M60 4l12 8-12 8" fill="currentColor" />
+            </svg>
+          </div>
+
+          {/* Right: Hardware Providers */}
+          <div className="flex flex-col items-center gap-2 min-w-[160px]">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center shadow-md">
+                <span className="text-white text-xs font-bold">IBM</span>
+              </div>
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 flex items-center justify-center shadow-md">
+                <span className="text-white text-xs font-bold">IonQ</span>
+              </div>
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 flex items-center justify-center shadow-md">
+                <span className="text-white text-xs font-bold">QuEra</span>
+              </div>
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md">
+                <span className="text-white text-xs font-bold">Rigetti</span>
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-qcloud-text">Quantum Hardware</div>
+          </div>
+        </div>
       </section>
 
       {/* Search Bar */}
