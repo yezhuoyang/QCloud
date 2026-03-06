@@ -81,7 +81,7 @@ function LandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/homework/cs238b-hw4" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">
+          <Link to="/homework/distillation" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">
             CS238B Homework
           </Link>
           <AuthHeader />
@@ -312,7 +312,7 @@ function LandingPage() {
               {searchQuery ? 'No challenges match your search' : 'No active challenges yet'}
             </p>
             <p className="text-sm text-qcloud-muted mt-2">
-              Check out the <Link to="/homework/cs238b-hw4" className="text-qcloud-primary hover:underline">CS238B Entanglement Distillation</Link> homework
+              Check out the <Link to="/homework/distillation" className="text-qcloud-primary hover:underline">CS238B Entanglement Distillation</Link> homework
             </p>
           </div>
         ) : (
