@@ -34,6 +34,8 @@ import ChallengeLeaderboardPage from './pages/ChallengeLeaderboardPage'
 import ChallengeQueuePage from './pages/ChallengeQueuePage'
 import ChallengeJobHistoryPage from './pages/ChallengeJobHistoryPage'
 import AdminChallengePage from './pages/AdminChallengePage'
+import AboutPage from './pages/AboutPage'
+import PeoplePage from './pages/PeoplePage'
 
 function App() {
   return (
@@ -75,6 +77,8 @@ function App() {
         <Route path="/challenge/:challengeId/job-history" element={<ChallengeJobHistoryPage />} />
         <Route path="/admin/challenges" element={<AdminChallengePage />} />
         <Route path="/admin/challenges/:challengeId" element={<AdminChallengePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/people" element={<PeoplePage />} />
       </Routes>
     </AuthProvider>
   )

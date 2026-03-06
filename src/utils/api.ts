@@ -1957,3 +1957,57 @@ export const challengeApi = {
       requireAuth: true,
     }),
 };
+
+// ========================
+// Site Content (About + People)
+// ========================
+
+export interface AboutContent {
+  mission: string;
+  donate: string;
+  collaborate: string;
+}
+
+export interface ContributorInfo {
+  id: number;
+  name: string;
+  affiliation?: string;
+  email?: string;
+  role?: string;
+  bio?: string;
+  url?: string;
+  display_order: number;
+}
+
+export const siteApi = {
+  getAbout: () => apiRequest<AboutContent>('/site/about'),
+
+  updateAbout: (data: Partial<AboutContent>) =>
+    apiRequest<AboutContent>('/site/about', {
+      method: 'PUT',
+      body: data,
+      requireAuth: true,
+    }),
+
+  getPeople: () => apiRequest<ContributorInfo[]>('/site/people'),
+
+  addContributor: (data: Omit<ContributorInfo, 'id'>) =>
+    apiRequest<ContributorInfo>('/site/people', {
+      method: 'POST',
+      body: data,
+      requireAuth: true,
+    }),
+
+  updateContributor: (id: number, data: Partial<ContributorInfo>) =>
+    apiRequest<ContributorInfo>(`/site/people/${id}`, {
+      method: 'PUT',
+      body: data,
+      requireAuth: true,
+    }),
+
+  deleteContributor: (id: number) =>
+    apiRequest<void>(`/site/people/${id}`, {
+      method: 'DELETE',
+      requireAuth: true,
+    }),
+};

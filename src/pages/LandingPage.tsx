@@ -81,6 +81,8 @@ function LandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-4">
+          <Link to="/about" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">About</Link>
+          <Link to="/people" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">People</Link>
           <Link to="/homework/distillation" className="text-sm text-qcloud-muted hover:text-qcloud-primary transition-colors">
             CS238B Homework
           </Link>

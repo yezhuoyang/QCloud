@@ -14,6 +14,7 @@ from .simulator import router as simulator_router
 from .hardware import router as hardware_router
 from .homework import router as homework_router
 from .challenge import router as challenge_router
+from .site import router as site_router
 
 # Create main API router (no prefix - added in main.py)
 api_router = APIRouter()
@@ -30,3 +31,4 @@ api_router.include_router(simulator_router)
 api_router.include_router(hardware_router)
 api_router.include_router(homework_router)
 api_router.include_router(challenge_router)
+api_router.include_router(site_router)
