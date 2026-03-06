@@ -239,11 +239,10 @@ function CompetitionListPage() {
         {/* Hero Section */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-qcloud-primary to-qcloud-secondary bg-clip-text text-transparent">
-            Quantum Challenges
+            Applications
           </h1>
           <p className="text-qcloud-muted mt-3 max-w-2xl mx-auto">
-            Test your quantum programming skills with real-world quantum algorithm challenges.
-            Compete for the best fidelity and resource efficiency!
+            Benchmark quantum hardware performance across real-world applications.
           </p>
 
           {/* Quick Stats */}

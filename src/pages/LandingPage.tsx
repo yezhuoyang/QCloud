@@ -109,7 +109,7 @@ function LandingPage() {
             type="text"
             value={searchQuery}
             onChange={e => handleSearch(e.target.value)}
-            placeholder="Search challenges by name, category, or keyword..."
+            placeholder="Search applications by name, category, or keyword..."
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-qcloud-border rounded-2xl text-qcloud-text placeholder-qcloud-muted focus:outline-none focus:border-qcloud-primary shadow-sm text-lg"
           />
         </div>
@@ -138,7 +138,7 @@ function LandingPage() {
               {/* Challenge global programmer leaderboard */}
               {challengeProgrammers.length > 0 && (
                 <div className="mb-3">
-                  <div className="text-xs text-qcloud-muted font-medium mb-2 uppercase tracking-wide">Challenge Rankings</div>
+                  <div className="text-xs text-qcloud-muted font-medium mb-2 uppercase tracking-wide">Application Rankings</div>
                   <div className="space-y-2">
                     {challengeProgrammers.map((entry, index) => (
                       <div key={entry.participant_label} className="flex items-center gap-3 p-2 rounded-lg hover:bg-qcloud-bg/50 transition-colors">
@@ -152,7 +152,7 @@ function LandingPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-qcloud-text text-sm truncate">{entry.display_name || entry.participant_label}</div>
-                          <div className="text-xs text-qcloud-muted">{entry.challenges_solved} challenges</div>
+                          <div className="text-xs text-qcloud-muted">{entry.challenges_solved} applications</div>
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-qcloud-primary">{(entry.total_score * 100).toFixed(0)}%</div>
@@ -172,7 +172,7 @@ function LandingPage() {
               ) : userLeaderboard.length === 0 && challengeProgrammers.length === 0 ? (
                 <div className="text-center py-12 text-qcloud-muted">
                   <p className="text-lg mb-1">No competitors yet</p>
-                  <p className="text-sm">Be the first to solve a challenge!</p>
+                  <p className="text-sm">Be the first to submit!</p>
                 </div>
               ) : userLeaderboard.length > 0 ? (
                 <>
@@ -226,7 +226,7 @@ function LandingPage() {
               {/* Challenge hardware rankings */}
               {challengeHardware.length > 0 && (
                 <div className="mb-3">
-                  <div className="text-xs text-qcloud-muted font-medium mb-2 uppercase tracking-wide">Challenge Backend Rankings</div>
+                  <div className="text-xs text-qcloud-muted font-medium mb-2 uppercase tracking-wide">Application Backend Rankings</div>
                   <div className="space-y-2">
                     {challengeHardware.map((entry, index) => (
                       <div key={entry.backend_name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-purple-50/50 transition-colors">
@@ -299,7 +299,7 @@ function LandingPage() {
       {/* Challenge Cards */}
       <section className="max-w-6xl mx-auto px-4 mb-16">
         <h2 className="text-2xl font-bold text-qcloud-text mb-6">
-          {searchQuery ? `Challenges matching "${searchQuery}"` : 'Active Challenges'}
+          {searchQuery ? `Applications matching "${searchQuery}"` : 'Applications'}
         </h2>
         {isLoadingChallenges ? (
           <div className="flex justify-center py-12">
@@ -309,10 +309,10 @@ function LandingPage() {
           <div className="bg-white rounded-xl border border-qcloud-border p-12 text-center">
             <div className="text-4xl mb-3">🔍</div>
             <p className="text-qcloud-muted text-lg">
-              {searchQuery ? 'No challenges match your search' : 'No active challenges yet'}
+              {searchQuery ? 'No applications match your search' : 'No applications yet'}
             </p>
             <p className="text-sm text-qcloud-muted mt-2">
-              Check out the <Link to="/homework/distillation" className="text-qcloud-primary hover:underline">CS238B Entanglement Distillation</Link> homework
+              Applications will appear here once created by an admin.
             </p>
           </div>
         ) : (
