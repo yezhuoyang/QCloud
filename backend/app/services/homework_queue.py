@@ -259,15 +259,40 @@ class HomeworkQueueManager:
 
     def check_job_status(
         self, db: Session, submission: HomeworkSubmission
-    ) -> HomeworkSubmission:
+    ) -> tuple:
         """
         Poll IBM for job status and update the submission.
-        If completed, compute fidelity and deduct budget.
+        If completed, compute fidelity and deduct budget, then try to
+        start the next queued job.
+
+        Returns:
+            (submission, newly_started) where newly_started is a
+            HomeworkSubmission that was just moved to 'running' by
+            process_next, or None.  Callers MUST schedule background
+            polling for the newly_started submission.
         """
         if submission.status != "running" or not submission.ibmq_job_id_before:
-            return submission
+            return submission, None
 
         homework = submission.homework
+        newly_started = None
+
+        # Auto-fail jobs stuck for more than 24 hours
+        if submission.started_at:
+            age_hours = (datetime.utcnow() - submission.started_at).total_seconds() / 3600
+            if age_hours > 24:
+                print(
+                    f"[HomeworkQueue] Submission {submission.id} stuck for "
+                    f"{age_hours:.1f}h, marking as failed"
+                )
+                submission.status = "failed"
+                submission.error_message = (
+                    f"Job timed out after {age_hours:.1f} hours in IBM queue"
+                )
+                submission.completed_at = datetime.utcnow()
+                db.commit()
+                newly_started = self.process_next(db, homework.id)
+                return submission, newly_started
 
         try:
             from qiskit_ibm_runtime import QiskitRuntimeService
@@ -299,6 +324,11 @@ class HomeworkQueueManager:
             new_status = status_map.get(status_name, submission.status)
             submission.last_checked_at = datetime.utcnow()
 
+            print(
+                f"[HomeworkQueue] Checking job {submission.ibmq_job_id_before}: "
+                f"IBM status={status_name}, mapped={new_status}"
+            )
+
             if new_status == "completed":
                 self._process_completion(db, submission, ibm_job)
             elif new_status == "failed":
@@ -314,14 +344,21 @@ class HomeworkQueueManager:
 
             # If job finished, try to process the next queued job
             if new_status in ("completed", "failed"):
-                self.process_next(db, homework.id)
+                newly_started = self.process_next(db, homework.id)
+                if newly_started:
+                    print(
+                        f"[HomeworkQueue] Cascaded: started submission "
+                        f"{newly_started.id} on {newly_started.backend_name}"
+                    )
 
         except Exception as e:
             print(f"[HomeworkQueue] Error checking status: {e}")
+            import traceback
+            traceback.print_exc()
             submission.last_checked_at = datetime.utcnow()
             db.commit()
 
-        return submission
+        return submission, newly_started
 
     def _process_completion(
         self, db: Session, submission: HomeworkSubmission, ibm_job

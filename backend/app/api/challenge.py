@@ -73,25 +73,38 @@ _simulation_semaphore = asyncio.Semaphore(3)
 
 # ============ Background Polling ============
 
+_active_challenge_pollers: set = set()
+
+
 async def _poll_challenge_submission(submission_id: str):
-    """Background task to poll IBM for job completion."""
+    """Background task to poll IBM for job completion.
+    Spawns new polling tasks for cascaded jobs."""
     from ..database import SessionLocal
 
-    max_polls = 120
-    for i in range(max_polls):
-        await asyncio.sleep(30)
-        db = SessionLocal()
-        try:
-            sub = db.query(ChallengeSubmission).filter(
-                ChallengeSubmission.id == submission_id
-            ).first()
-            if not sub or sub.status not in ("running",):
-                break
-            challenge_queue.check_job_status(db, sub)
-            if sub.status in ("completed", "failed"):
-                break
-        finally:
-            db.close()
+    if submission_id in _active_challenge_pollers:
+        return
+    _active_challenge_pollers.add(submission_id)
+
+    try:
+        max_polls = 120
+        for i in range(max_polls):
+            await asyncio.sleep(30)
+            db = SessionLocal()
+            try:
+                sub = db.query(ChallengeSubmission).filter(
+                    ChallengeSubmission.id == submission_id
+                ).first()
+                if not sub or sub.status not in ("running",):
+                    break
+                sub, newly_started = challenge_queue.check_job_status(db, sub)
+                if newly_started:
+                    asyncio.ensure_future(_poll_challenge_submission(newly_started.id))
+                if sub.status in ("completed", "failed"):
+                    break
+            finally:
+                db.close()
+    finally:
+        _active_challenge_pollers.discard(submission_id)
 
 
 # ============ Public Endpoints ============
@@ -328,16 +341,14 @@ async def get_submission_status(
         raise HTTPException(status_code=404, detail="Submission not found")
 
     if sub.status == "running":
-        challenge_queue.check_job_status(db, sub)
+        sub, newly_started = challenge_queue.check_job_status(db, sub)
         db.refresh(sub)
 
-        if sub.status == "running":
+        if sub.status == "running" and sub.id not in _active_challenge_pollers:
             background_tasks.add_task(_poll_challenge_submission, sub.id)
 
-        if sub.status in ("completed", "failed"):
-            started = challenge_queue.process_next(db, sub.challenge_id)
-            if started:
-                background_tasks.add_task(_poll_challenge_submission, started.id)
+        if newly_started and newly_started.id not in _active_challenge_pollers:
+            background_tasks.add_task(_poll_challenge_submission, newly_started.id)
 
     return _format_submission(sub)
 

@@ -157,12 +157,36 @@ class ChallengeQueueManager:
 
     def check_job_status(
         self, db: Session, submission: ChallengeSubmission
-    ) -> ChallengeSubmission:
-        """Poll IBM for job status. If completed, evaluate and score."""
+    ) -> tuple:
+        """Poll IBM for job status. If completed, evaluate and score.
+
+        Returns:
+            (submission, newly_started) where newly_started is a
+            ChallengeSubmission that was just moved to 'running' by
+            process_next, or None.
+        """
         if submission.status != "running" or not submission.ibmq_job_id:
-            return submission
+            return submission, None
 
         challenge = submission.challenge
+        newly_started = None
+
+        # Auto-fail jobs stuck for more than 24 hours
+        if submission.started_at:
+            age_hours = (datetime.utcnow() - submission.started_at).total_seconds() / 3600
+            if age_hours > 24:
+                print(
+                    f"[ChallengeQueue] Submission {submission.id} stuck for "
+                    f"{age_hours:.1f}h, marking as failed"
+                )
+                submission.status = "failed"
+                submission.error_message = (
+                    f"Job timed out after {age_hours:.1f} hours in IBM queue"
+                )
+                submission.completed_at = datetime.utcnow()
+                db.commit()
+                newly_started = self.process_next(db, challenge.id)
+                return submission, newly_started
 
         try:
             from qiskit_ibm_runtime import QiskitRuntimeService
@@ -190,6 +214,11 @@ class ChallengeQueueManager:
             new_status = status_map.get(status_name, submission.status)
             submission.last_checked_at = datetime.utcnow()
 
+            print(
+                f"[ChallengeQueue] Checking job {submission.ibmq_job_id}: "
+                f"IBM status={status_name}, mapped={new_status}"
+            )
+
             if new_status == "completed":
                 self._process_completion(db, submission, ibm_job, challenge)
             elif new_status == "failed":
@@ -204,14 +233,21 @@ class ChallengeQueueManager:
             db.commit()
 
             if new_status in ("completed", "failed"):
-                self.process_next(db, challenge.id)
+                newly_started = self.process_next(db, challenge.id)
+                if newly_started:
+                    print(
+                        f"[ChallengeQueue] Cascaded: started submission "
+                        f"{newly_started.id} on {newly_started.backend_name}"
+                    )
 
         except Exception as e:
             print(f"[ChallengeQueue] Error checking status: {e}")
+            import traceback
+            traceback.print_exc()
             submission.last_checked_at = datetime.utcnow()
             db.commit()
 
-        return submission
+        return submission, newly_started
 
     def _process_completion(
         self, db: Session, submission: ChallengeSubmission, ibm_job, challenge: Challenge

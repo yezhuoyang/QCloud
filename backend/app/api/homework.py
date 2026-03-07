@@ -80,26 +80,41 @@ router = APIRouter(prefix="/homework", tags=["Homework"])
 
 # ============ Helper to poll IBM jobs in the background ============
 
+_active_pollers: set = set()  # Track submission IDs with active polling tasks
+
+
 async def _poll_submission_status(submission_id: str):
-    """Background task to poll IBM for job completion."""
+    """Background task to poll IBM for job completion.
+    When this job completes and a new queued job is started,
+    automatically spawns a polling task for the new job."""
     import asyncio
     from ..database import SessionLocal
 
-    max_polls = 120  # ~1 hour with 30s intervals
-    for i in range(max_polls):
-        await asyncio.sleep(30)
-        db = SessionLocal()
-        try:
-            sub = db.query(HomeworkSubmission).filter(
-                HomeworkSubmission.id == submission_id
-            ).first()
-            if not sub or sub.status not in ("running",):
-                break
-            homework_queue.check_job_status(db, sub)
-            if sub.status in ("completed", "failed"):
-                break
-        finally:
-            db.close()
+    if submission_id in _active_pollers:
+        return  # Already being polled
+    _active_pollers.add(submission_id)
+
+    try:
+        max_polls = 120  # ~1 hour with 30s intervals
+        for i in range(max_polls):
+            await asyncio.sleep(30)
+            db = SessionLocal()
+            try:
+                sub = db.query(HomeworkSubmission).filter(
+                    HomeworkSubmission.id == submission_id
+                ).first()
+                if not sub or sub.status not in ("running",):
+                    break
+                sub, newly_started = homework_queue.check_job_status(db, sub)
+                # If a new job was started from the queue, spawn a poller for it
+                if newly_started:
+                    asyncio.ensure_future(_poll_submission_status(newly_started.id))
+                if sub.status in ("completed", "failed"):
+                    break
+            finally:
+                db.close()
+    finally:
+        _active_pollers.discard(submission_id)
 
 
 # ============ Student Endpoints ============
@@ -288,7 +303,10 @@ async def get_submission_status(
 
     # If running, check IBM status
     if submission.status == "running":
-        homework_queue.check_job_status(db, submission)
+        submission, newly_started = homework_queue.check_job_status(db, submission)
+        # If a cascaded job was started, schedule polling for it
+        if newly_started and newly_started.id not in _active_pollers:
+            background_tasks.add_task(_poll_submission_status, newly_started.id)
 
     return _format_submission(submission)
 
@@ -320,12 +338,37 @@ async def get_my_submissions(
 async def get_queue_status(
     homework_id: str,
     token: str = Query(None, description="Student's homework token (optional)"),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
-    """Get the current queue status for a homework."""
+    """Get the current queue status for a homework.
+    Also checks running jobs for completion and tries to advance the queue."""
     homework = get_homework(db, homework_id)
     if not homework:
         raise HTTPException(status_code=404, detail="Homework not found")
+
+    # Check all running jobs — this catches stuck jobs that lost their poller
+    running_subs = (
+        db.query(HomeworkSubmission)
+        .filter(
+            HomeworkSubmission.homework_id == homework.id,
+            HomeworkSubmission.status == "running",
+        )
+        .all()
+    )
+    for sub in running_subs:
+        if sub.id not in _active_pollers:
+            sub, newly_started = homework_queue.check_job_status(db, sub)
+            if sub.status == "running":
+                # Still running but no active poller — start one
+                background_tasks.add_task(_poll_submission_status, sub.id)
+            if newly_started and newly_started.id not in _active_pollers:
+                background_tasks.add_task(_poll_submission_status, newly_started.id)
+
+    # Also try to advance queued jobs if slots are free
+    started = homework_queue.process_next(db, homework.id)
+    if started and started.id not in _active_pollers:
+        background_tasks.add_task(_poll_submission_status, started.id)
 
     token_record = None
     if token:
